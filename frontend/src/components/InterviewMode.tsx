@@ -21,6 +21,26 @@ export default function InterviewMode() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyzerRef = useRef<AnalyserNode | null>(null)
   const animationRef = useRef<number | null>(null)
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    return () => {
+      // Clean up active playing audio
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause()
+        activeAudioRef.current.src = ""
+      }
+      // Cancel lip sync animation frames
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+      // Stop all active microphone tracks
+      if (mediaRecorderRef.current && mediaRecorderRef.current.stream) {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [])
+
 
   const startRecording = async () => {
     try {
@@ -105,6 +125,8 @@ export default function InterviewMode() {
   const playAudioWithLipSync = async (url: string) => {
     const audio = new Audio(url)
     audio.crossOrigin = "anonymous"
+    activeAudioRef.current = audio
+
     
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()

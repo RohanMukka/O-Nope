@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -8,6 +8,9 @@ import json
 import uuid
 import sys
 import io
+import ast
+import re
+import asyncio
 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -98,7 +101,7 @@ async def interview(
         voice = voice_map.get(role, "en-US-AriaNeural")
         
         audio_file = f"temp_{uuid.uuid4()}.mp3"
-        audio_path = generate_tts(ai_text, voice=voice, output_file=audio_file)
+        audio_path = await generate_tts(ai_text, voice=voice, output_file=audio_file)
         
         return {
             "score": new_score,
@@ -109,11 +112,23 @@ async def interview(
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-@app.get("/api/audio/{filename}")
-def get_audio(filename: str):
-    """Serves the dynamically generated TTS audio files."""
+def remove_file(filepath: str):
     try:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    except Exception as e:
+        print(f"Error removing temp file {filepath}: {e}")
+
+@app.get("/api/audio/{filename}")
+def get_audio(filename: str, background_tasks: BackgroundTasks):
+    """Serves the dynamically generated TTS audio files and deletes them after sending."""
+    try:
+        # Regex check to block path traversals completely
+        if not re.match(r"^temp_[a-f0-9\-]+\.mp3$", filename):
+            return JSONResponse(status_code=400, content={"error": "Invalid filename format"})
+            
         if os.path.exists(filename):
+            background_tasks.add_task(remove_file, filename)
             return FileResponse(filename, media_type="audio/mpeg")
         return JSONResponse(status_code=404, content={"error": "File not found"})
     except Exception as e:
@@ -126,23 +141,20 @@ async def roast_code(
 ):
     """
     Handles the Code Roast logic. Runs deterministic static analysis via pyflakes and ast,
-    then feeds the errors into the LLM with the specified intensity.
+    then feeds the errors/logic constraints into the LLM with the specified intensity.
     """
     try:
         errors = analyze_code(code)
         
+        # If there are syntax errors, specify them. Otherwise, ask LLM for logical roast.
         if not errors:
-            return {
-                "roast": "Wait... this actually passed the static analysis. I have nothing to roast. Good job, I guess.", 
-                "corrected_code": code,
-                "errors": []
-            }
+            error_str = "No syntax errors found. Critique the overall logical flow, edge cases, complexity, and pythonic style instead."
+        else:
+            error_str = ""
+            for e in errors:
+                error_str += f"- {e}\n"
             
         context = f"The user submitted this code:\n```python\n{code}\n```\n\n"
-        error_str = ""
-        for e in errors:
-            error_str += f"- {e}\n"
-            
         system_prompt = CODE_ROAST_SYSTEM_PROMPT.format(intensity=intensity, syntax_errors=error_str)
         response_data = generate_json_response(system_prompt, context)
         
@@ -163,12 +175,12 @@ async def think_aloud(
     problem_id: str = Form("two_sum")
 ):
     """
-    Handles the Think Out Loud mode. Transcribes audio, maps it to the expected optimal solution
+    Handles the Think Out Loud mode. Transcribes audio on a threadpool, maps it to the expected optimal solution
     for a specific DSA problem, and generates a structured grading rubric.
     """
     try:
         audio_bytes = await audio.read()
-        transcription = transcribe_audio_bytes(audio_bytes)
+        transcription = await asyncio.to_thread(transcribe_audio_bytes, audio_bytes)
         
         if not transcription or transcription.startswith("Error"):
             return JSONResponse(status_code=500, content={"error": transcription or "Failed to transcribe audio"})
@@ -197,13 +209,39 @@ async def think_aloud(
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+def check_safety(code: str) -> bool:
+    """
+    Parses Python code and walks the AST. Blocks imports, dunder attributes (__),
+    and dangerous built-ins to secure the tracing visualizer.
+    """
+    try:
+        tree = ast.parse(code)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                return False
+            if isinstance(node, ast.Attribute):
+                if node.attr.startswith('__'):
+                    return False
+            if isinstance(node, ast.Name):
+                if node.id in ['eval', 'exec', 'open', 'compile', 'input', 'globals', 'locals', 'vars', 'getattr', 'setattr', 'delattr', 'hasattr']:
+                    return False
+        return True
+    except Exception:
+        return False
+
 @app.post("/api/visualize")
 async def visualize_code(code: str = Form(...)):
     """
     Traces Python code execution step-by-step and returns the call stack,
-    variables, and stdout at each step.
+    variables, and stdout at each step after passing AST safety checks.
     """
     try:
+        if not check_safety(code):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Security Block: Arbitrary imports, dangerous builtins (eval, exec, open), and double underscore attributes (__) are disabled."}
+            )
+            
         steps = []
         stdout_buffer = io.StringIO()
         

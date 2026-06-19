@@ -14,6 +14,8 @@ except ImportError:
     print("Warning: whisper is not installed. Audio transcription will not work.")
     model = None
 
+import tempfile
+
 def transcribe_audio_bytes(audio_bytes: bytes) -> str:
     """
     Takes raw audio bytes, converts to a format Whisper understands,
@@ -22,9 +24,10 @@ def transcribe_audio_bytes(audio_bytes: bytes) -> str:
     if model is None:
         return "Error: Whisper model not loaded."
         
-    temp_filename = "temp_audio.wav"
-    with open(temp_filename, "wb") as f:
-        f.write(audio_bytes)
+    # Use unique temp file per request
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+        temp_file.write(audio_bytes)
+        temp_filename = temp_file.name
         
     try:
         result = model.transcribe(temp_filename)
@@ -41,17 +44,15 @@ def transcribe_audio_bytes(audio_bytes: bytes) -> str:
 import asyncio
 import edge_tts
 
-async def _generate_tts_async(text, voice, output_file):
-    communicate = edge_tts.Communicate(text, voice)
-    await communicate.save(output_file)
-
-def generate_tts(text: str, voice: str = "en-US-AriaNeural", output_file: str = "temp_tts.mp3"):
+async def generate_tts(text: str, voice: str = "en-US-AriaNeural", output_file: str = "temp_tts.mp3"):
     """
-    Generates an MP3 file using edge-tts.
+    Generates an MP3 file using edge-tts asynchronously.
     """
     try:
-        asyncio.run(_generate_tts_async(text, voice, output_file))
+        communicate = edge_tts.Communicate(text, voice)
+        await communicate.save(output_file)
         return output_file
     except Exception as e:
         print(f"TTS Error: {e}")
         return None
+

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 
 export default function VisualizerMode() {
   const [code, setCode] = useState(`def fib(n):
@@ -58,7 +58,9 @@ print("fib(4) is:", fib(4))`)
     }
   }
 
-  const lineCount = code.split('\n').length
+  const codeLines = useMemo(() => code.split('\n'), [code])
+  const lineCount = codeLines.length
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
@@ -213,7 +215,7 @@ print("fib(4) is:", fib(4))`)
                 whiteSpace: 'pre',
                 flex: 1
               }}>
-                {code.split('\n').map((lineText, idx) => {
+                {codeLines.map((lineText, idx) => {
                   const isCurrentLine = steps[currentStepIndex]?.line === idx + 1
                   return (
                     <div 

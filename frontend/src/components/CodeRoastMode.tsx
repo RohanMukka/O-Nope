@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 
 const TAGLINES = [
   "Upload your code and let our compiler judge your life choices.",
@@ -55,6 +55,9 @@ export default function CodeRoastMode() {
       gutterRef.current.scrollTop = textareaRef.current.scrollTop
     }
   }, [code])
+
+  const lineCount = useMemo(() => code.split('\n').length, [code])
+
 
 
   const handleRoast = async () => {
@@ -146,7 +149,7 @@ export default function CodeRoastMode() {
               alignItems: 'stretch'
             }}
           >
-            {Array.from({ length: code.split('\n').length }).map((_, index) => (
+            {Array.from({ length: lineCount }).map((_, index) => (
               <div key={index} style={{ height: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                 {index + 1}
               </div>
