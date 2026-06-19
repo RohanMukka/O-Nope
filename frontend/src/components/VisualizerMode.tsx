@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Play, Maximize2, Minimize2, ExternalLink, Info, AlertCircle, Sparkles } from 'lucide-react'
+import { Play, Maximize2, Minimize2, ExternalLink, Info, AlertCircle, Sparkles, Loader2 } from 'lucide-react'
+import Editor from '@monaco-editor/react'
 
 const PRESETS = {
   fibonacci: {
@@ -51,21 +52,6 @@ export default function VisualizerMode() {
   const [steps, setSteps] = useState<any[]>([])
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [error, setError] = useState('')
-  
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const gutterRef = useRef<HTMLDivElement>(null)
-
-  const handleScroll = () => {
-    if (textareaRef.current && gutterRef.current) {
-      gutterRef.current.scrollTop = textareaRef.current.scrollTop
-    }
-  }
-
-  useEffect(() => {
-    if (textareaRef.current && gutterRef.current) {
-      gutterRef.current.scrollTop = textareaRef.current.scrollTop
-    }
-  }, [code])
 
   const handleEngineChange = (newEngine: 'pythontutor' | 'native') => {
     setEngine(newEngine)
@@ -228,76 +214,33 @@ export default function VisualizerMode() {
             </span>
             <div style={{
               flex: 1,
-              display: 'flex',
-              background: 'rgba(0, 0, 0, 0.3)',
+              background: 'rgba(0, 0, 0, 0.4)',
               border: '1px solid var(--glass-border)',
               borderRadius: '8px',
-              fontFamily: "JetBrains Mono, Fira Code, Consolas, Monaco, 'Courier New', monospace",
-              fontSize: '13px',
-              lineHeight: '1.5rem',
-              position: 'relative',
               overflow: 'hidden',
-              marginBottom: '1rem'
+              marginBottom: '1rem',
+              position: 'relative'
             }}>
-              {/* Line Gutter */}
-              <div 
-                ref={gutterRef}
-                style={{
-                  padding: '0.8rem 0',
-                  width: '3rem',
-                  background: 'rgba(0, 0, 0, 0.25)',
-                  borderRight: '1px solid var(--glass-border)',
-                  color: '#475569',
-                  textAlign: 'right',
-                  paddingRight: '0.8rem',
-                  userSelect: 'none',
-                  overflowY: 'hidden',
-                  boxSizing: 'border-box',
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'stretch'
-                }}
-              >
-                {Array.from({ length: lineCount }).map((_, index) => (
-                  <div key={index} style={{ height: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                    {index + 1}
-                  </div>
-                ))}
-              </div>
-              
-              {/* Textarea */}
-              <textarea 
-                ref={textareaRef}
+              <Editor
+                height="100%"
+                defaultLanguage="python"
+                theme="vs-dark"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
-                onScroll={handleScroll}
-                wrap="off"
-                placeholder="# Enter Python code here..."
-                style={{
-                  flex: 1,
-                  background: 'transparent',
-                  border: 'none',
-                  borderRadius: 0,
-                  color: 'white',
-                  padding: '0.8rem',
-                  margin: 0,
+                onChange={(val) => setCode(val || '')}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 13,
                   fontFamily: "JetBrains Mono, Fira Code, Consolas, Monaco, 'Courier New', monospace",
-                  fontSize: '13px',
-                  lineHeight: '1.5rem',
-                  resize: 'none',
-                  overflowY: 'auto',
-                  overflowX: 'auto',
-                  whiteSpace: 'pre',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  height: '100%',
+                  scrollBeyondLastLine: false,
+                  wordWrap: 'on',
+                  padding: { top: 12, bottom: 12 }
                 }}
               />
             </div>
 
             <button className="btn-primary" onClick={handleVisualize} disabled={loading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-              <Play size={16} fill="currentColor" /> {loading ? 'Executing...' : 'Visualize Execution'}
+              {loading ? <Loader2 className="animate-spin" size={16} /> : <Play size={16} fill="currentColor" />}
+              {loading ? 'Executing...' : 'Visualize Execution'}
             </button>
           </div>
         </div>

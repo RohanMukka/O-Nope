@@ -18,9 +18,14 @@ export default function ThinkOutLoudMode() {
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const silenceTimerRef = useRef<number | null>(null)
+  const isStoppingRef = useRef(false)
 
   useEffect(() => {
     return () => {
+      if (silenceTimerRef.current !== null) window.clearTimeout(silenceTimerRef.current)
+      if (audioContextRef.current) audioContextRef.current.close()
       if (mediaRecorderRef.current && mediaRecorderRef.current.stream) {
         mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
       }
@@ -31,7 +36,49 @@ export default function ThinkOutLoudMode() {
   const startRecording = async () => {
     try {
       setError('')
+      isStoppingRef.current = false
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      
+      // Setup Web Audio API for VAD
+      const audioContext = new AudioContext()
+      const analyser = audioContext.createAnalyser()
+      const source = audioContext.createMediaStreamSource(stream)
+      source.connect(analyser)
+      analyser.minDecibels = -60
+      analyser.fftSize = 256
+      audioContextRef.current = audioContext
+      
+      const bufferLength = analyser.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+
+      const detectSilence = () => {
+        if (isStoppingRef.current) return
+        analyser.getByteFrequencyData(dataArray)
+        let sum = 0
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i]
+        }
+        const average = sum / bufferLength
+        
+        if (average < 5) { // Silence threshold
+          if (silenceTimerRef.current === null) {
+            silenceTimerRef.current = window.setTimeout(() => {
+              if (!isStoppingRef.current) {
+                console.log("Silence detected. Auto-stopping recording.")
+                stopRecording()
+              }
+            }, 2000)
+          }
+        } else {
+          // Voice activity detected
+          if (silenceTimerRef.current !== null) {
+            window.clearTimeout(silenceTimerRef.current)
+            silenceTimerRef.current = null
+          }
+        }
+        requestAnimationFrame(detectSilence)
+      }
+
       const recorder = new MediaRecorder(stream)
       mediaRecorderRef.current = recorder
       audioChunksRef.current = []
@@ -47,6 +94,7 @@ export default function ThinkOutLoudMode() {
 
       recorder.start()
       setIsRecording(true)
+      detectSilence() // Start VAD
     } catch (err) {
       console.error("Microphone access denied", err)
       setError("Microphone access denied.")
@@ -54,7 +102,16 @@ export default function ThinkOutLoudMode() {
   }
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current) {
+    isStoppingRef.current = true
+    if (silenceTimerRef.current !== null) {
+      window.clearTimeout(silenceTimerRef.current)
+      silenceTimerRef.current = null
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {})
+      audioContextRef.current = null
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())

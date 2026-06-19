@@ -83,12 +83,54 @@ export default function CodeRoastMode() {
         body: formData
       })
       
-      const data = await res.json()
-      setRoast(data.roast || data.error || 'Error connecting to the backend API.')
-      setCorrectedCode(data.corrected_code || '')
-      setErrors(data.errors || [])
+      if (!res.body) throw new Error("No response body")
+      
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let done = false
+      let buffer = ''
+      
+      setLoading(false) 
+      
+      while (!done) {
+        const { value, done: doneReading } = await reader.read()
+        done = doneReading
+        if (value) {
+          buffer += decoder.decode(value, { stream: true })
+          const parts = buffer.split('\n\n')
+          buffer = parts.pop() || ''
+          
+          for (const part of parts) {
+            if (part.startsWith('data: ')) {
+              const dataStr = part.slice(6)
+              if (dataStr === '[DONE]') {
+                done = true
+                break
+              }
+              try {
+                const data = JSON.parse(dataStr)
+                if (data.type === 'metadata') {
+                  setErrors(data.errors || [])
+                } else if (data.type === 'chunk') {
+                  setRoast(prev => prev + data.text)
+                } else if (data.type === 'audio') {
+                  setAudioUrl(data.url)
+                  if (activeAudioRef.current) activeAudioRef.current.pause()
+                  const audio = new Audio('http://localhost:8000' + data.url)
+                  activeAudioRef.current = audio
+                  audio.play().catch(e => console.error("Audio playback error:", e))
+                } else if (data.type === 'error') {
+                  setRoast(prev => prev + "\nError: " + data.text)
+                }
+              } catch (e) {
+                console.error("SSE JSON parse error:", e)
+              }
+            }
+          }
+        }
+      }
     } catch (err) {
-      setRoast('Error connecting to the backend API.')
+      setRoast(prev => prev + '\nError connecting to the backend API.')
     } finally {
       setLoading(false)
     }

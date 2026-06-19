@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 import os
@@ -15,9 +15,10 @@ import asyncio
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.llm import generate_json_response, query_llm
+from utils.llm import generate_json_response, query_llm, stream_llm_response_async
 from utils.audio import generate_tts, transcribe_audio_bytes
 from utils.ast_checker import analyze_code
+from utils.sandbox import run_visualization_safe
 from prompts.system_prompts import INTERVIEW_SYSTEM_PROMPT, CODE_ROAST_SYSTEM_PROMPT, THINK_ALOUD_SYSTEM_PROMPT
 
 app = FastAPI(title="O(Nope) API")
@@ -76,6 +77,9 @@ async def interview(
     and returns an AI audio response.
     """
     try:
+        if len(user_message) > 10000:
+            return JSONResponse(status_code=413, content={"error": "Payload too large."})
+            
         history_arr = json.loads(history)
         history_arr.append({"role": "user", "content": user_message})
         
@@ -142,54 +146,56 @@ async def roast_code(
     intensity: str = Form("Constructive")
 ):
     """
-    Handles the Code Roast logic. Runs deterministic static analysis via pyflakes and ast,
-    then feeds the errors/logic constraints into the LLM with the specified intensity.
+    Handles the Code Roast logic via SSE streaming.
     """
-    try:
-        errors = analyze_code(code)
+    if len(code) > 50000:
+        return JSONResponse(status_code=413, content={"error": "Payload too large. Maximum 50,000 characters."})
         
-        # If there are syntax errors, specify them. Otherwise, ask LLM for logical roast.
-        if not errors:
-            error_str = "No syntax errors found. Critique the overall logical flow, edge cases, complexity, and pythonic style instead."
-        else:
-            error_str = ""
-            for e in errors:
-                error_str += f"- {e}\n"
+    errors = analyze_code(code)
+    
+    async def event_generator():
+        try:
+            yield f"data: {json.dumps({'type': 'metadata', 'errors': errors})}\n\n"
             
-        context = f"The user submitted this code:\n```python\n{code}\n```\n\n"
-        system_prompt = CODE_ROAST_SYSTEM_PROMPT.format(intensity=intensity, syntax_errors=error_str)
-        response_data = generate_json_response(system_prompt, context)
-        
-        if "error" in response_data:
-            return JSONResponse(status_code=500, content={"error": response_data["error"]})
+            if not errors:
+                error_str = "No syntax errors found. Critique the overall logical flow, edge cases, complexity, and pythonic style instead."
+            else:
+                error_str = "\n".join(f"- {e}" for e in errors)
+                
+            context = f"The user submitted this code:\n<user_input>\n{code}\n</user_input>\n\n"
+            system_prompt = CODE_ROAST_SYSTEM_PROMPT.format(intensity=intensity, syntax_errors=error_str)
             
-        roast_text = response_data.get("roast", "No roast generated.")
-        
-        # Adjust vocal style parameters per intensity to project emotion
-        if intensity == "Constructive":
-            voice = "en-US-AriaNeural"
-            rate = "+0%"
-            pitch = "+0Hz"
-        elif intensity == "Brutal":
-            voice = "en-US-GuyNeural"
-            rate = "+12%"
-            pitch = "-10%"
-        else: # Demeaning
-            voice = "en-GB-SoniaNeural"
-            rate = "-5%"
-            pitch = "+10%"
+            full_roast = ""
+            async for chunk in stream_llm_response_async(system_prompt, context):
+                full_roast += chunk
+                yield f"data: {json.dumps({'type': 'chunk', 'text': chunk})}\n\n"
+                
+            # Adjust vocal style parameters per intensity to project emotion
+            if intensity == "Constructive":
+                voice = "en-US-AriaNeural"
+                rate = "+0%"
+                pitch = "+0Hz"
+            elif intensity == "Brutal":
+                voice = "en-US-GuyNeural"
+                rate = "+12%"
+                pitch = "-10%"
+            else: # Demeaning
+                voice = "en-GB-SoniaNeural"
+                rate = "-5%"
+                pitch = "+10%"
+                
+            audio_file = f"temp_{uuid.uuid4()}.mp3"
+            # Truncate text for TTS to not exceed limits / keep it snappy
+            audio_path = await generate_tts(full_roast[:1000], voice=voice, output_file=audio_file, rate=rate, pitch=pitch)
             
-        audio_file = f"temp_{uuid.uuid4()}.mp3"
-        audio_path = await generate_tts(roast_text, voice=voice, output_file=audio_file, rate=rate, pitch=pitch)
-        
-        return {
-            "roast": roast_text, 
-            "corrected_code": response_data.get("corrected_code", code),
-            "errors": errors,
-            "audio_url": f"/api/audio/{audio_file}" if audio_path else None
-        }
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+            if audio_path:
+                yield f"data: {json.dumps({'type': 'audio', 'url': f'/api/audio/{audio_file}'})}\n\n"
+                
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'text': str(e)})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.post("/api/think_aloud")
 async def think_aloud(
@@ -231,113 +237,21 @@ async def think_aloud(
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-def check_safety(code: str) -> bool:
-    """
-    Parses Python code and walks the AST. Blocks imports, dunder attributes (__),
-    and dangerous built-ins to secure the tracing visualizer.
-    """
-    try:
-        tree = ast.parse(code)
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.Import, ast.ImportFrom)):
-                return False
-            if isinstance(node, ast.Attribute):
-                if node.attr.startswith('__'):
-                    return False
-            if isinstance(node, ast.Name):
-                if node.id in ['eval', 'exec', 'open', 'compile', 'input', 'globals', 'locals', 'vars', 'getattr', 'setattr', 'delattr', 'hasattr']:
-                    return False
-        return True
-    except Exception:
-        return False
-
 @app.post("/api/visualize")
 async def visualize_code(code: str = Form(...)):
     """
-    Traces Python code execution step-by-step and returns the call stack,
-    variables, and stdout at each step after passing AST safety checks.
+    Traces Python code execution step-by-step using a multiprocessing sandbox.
     """
     try:
-        if not check_safety(code):
-            return JSONResponse(
-                status_code=400,
-                content={"error": "Security Block: Arbitrary imports, dangerous builtins (eval, exec, open), and double underscore attributes (__) are disabled."}
-            )
+        if len(code) > 20000:
+            return JSONResponse(status_code=413, content={"error": "Payload too large. Maximum 20,000 characters for tracing."})
             
-        steps = []
-        stdout_buffer = io.StringIO()
+        result = await asyncio.to_thread(run_visualization_safe, code)
         
-        def trace_lines(frame, event, arg):
-            if event != 'line':
-                return trace_lines
-                
-            co = frame.f_code
-            filename = co.co_filename
-            if filename != '<string>':
-                return trace_lines
-                
-            if len(steps) >= 300:
-                raise RuntimeError("Execution limit exceeded (maximum 300 steps)")
-                
-            line_no = frame.f_lineno
+        if "error" in result:
+            return JSONResponse(status_code=400, content={"error": result["error"]})
             
-            # Capture stack frames
-            stack = []
-            curr_frame = frame
-            while curr_frame:
-                if curr_frame.f_code.co_filename == '<string>':
-                    frame_locals = {}
-                    for k, v in curr_frame.f_locals.items():
-                        if k.startswith('__') or k == 'trace_lines':
-                            continue
-                        try:
-                            # Verify JSON serializability
-                            json.dumps(v)
-                            frame_locals[k] = v
-                        except:
-                            frame_locals[k] = repr(v)
-                    stack.append({
-                        "name": curr_frame.f_code.co_name,
-                        "line": curr_frame.f_lineno,
-                        "variables": frame_locals
-                    })
-                curr_frame = curr_frame.f_back
-                
-            steps.append({
-                "line": line_no,
-                "stack": list(reversed(stack)),
-                "output": stdout_buffer.getvalue()
-            })
-            return trace_lines
-
-        original_stdout = sys.stdout
-        sys.stdout = stdout_buffer
-        
-        loc = {}
-        glob = {"__builtins__": __builtins__}
-        
-        try:
-            sys.settrace(trace_lines)
-            exec(code, glob, loc)
-        except Exception as e:
-            tb = sys.exc_info()[2]
-            err_line = 1
-            while tb:
-                if tb.tb_frame.f_code.co_filename == '<string>':
-                    err_line = tb.tb_lineno
-                tb = tb.tb_next
-                
-            steps.append({
-                "line": err_line,
-                "stack": [{"name": "<error>", "line": err_line, "variables": {}}],
-                "output": stdout_buffer.getvalue(),
-                "error": f"{type(e).__name__}: {str(e)}"
-            })
-        finally:
-            sys.settrace(None)
-            sys.stdout = original_stdout
-            
-        return {"steps": steps}
+        return {"steps": result.get("steps", [])}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

@@ -1,5 +1,5 @@
 import os
-from groq import Groq
+from groq import Groq, AsyncGroq
 import json
 from dotenv import load_dotenv
 
@@ -74,3 +74,55 @@ def query_llm(system_prompt: str, user_prompt: str, model: str = "llama-3.3-70b-
     except Exception as e:
         print(f"Error calling Groq API: {e}")
         return str(e)
+
+def stream_llm_response(system_prompt: str, user_prompt: str, model: str = "llama-3.3-70b-versatile"):
+    """
+    Queries the Groq API and streams the response back chunk-by-chunk.
+    """
+    client = get_groq_client()
+    try:
+        completion = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2048,
+            stream=True
+        )
+        for chunk in completion:
+            content = chunk.choices[0].delta.content
+            if content is not None:
+                yield content
+    except Exception as e:
+        yield f"Error: {str(e)}"
+
+async def get_async_groq_client():
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("GROQ_API_KEY is not set in the environment.")
+    return AsyncGroq(api_key=api_key)
+
+async def stream_llm_response_async(system_prompt: str, user_prompt: str, model: str = "llama-3.3-70b-versatile"):
+    """
+    Queries the Groq API asynchronously and streams the response back chunk-by-chunk.
+    """
+    client = await get_async_groq_client()
+    try:
+        completion = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2048,
+            stream=True
+        )
+        async for chunk in completion:
+            content = chunk.choices[0].delta.content
+            if content is not None:
+                yield content
+    except Exception as e:
+        yield f"Error: {str(e)}"
