@@ -30,3 +30,29 @@ Building a multimodal, real-time application in a hackathon timeframe presented 
 - Achieving **sub-second latency** by integrating the Groq LPU API, making the live interview feel genuinely conversational.
 - Successfully integrating a frictionless, full-stack **Whisper speech-to-text pipeline** directly from a React browser application to a local Python backend.
 - Designing a highly unique, engaging, and genuinely useful educational tool that disrupts the standard "friendly chatbot" paradigm.
+
+## How to Run
+
+To run the application, open **two separate terminal windows** on Windows:
+
+### Terminal 1: Start the Backend Server (FastAPI)
+1. Navigate to the project root:
+   ```powershell
+   cd "c:\Users\rohan\Documents\projects\O(Nope)"
+   ```
+2. Activate the virtual environment and start the server:
+   ```powershell
+   .\venv\bin\python api/main.py
+   ```
+   *(Backend runs on `http://localhost:8000`)*
+
+### Terminal 2: Start the Frontend Server (Vite / React)
+1. Navigate to the frontend directory:
+   ```powershell
+   cd "c:\Users\rohan\Documents\projects\O(Nope)\frontend"
+   ```
+2. Start the development server:
+   ```powershell
+   npm run dev
+   ```
+   *(Frontend runs on `http://localhost:5173`)*

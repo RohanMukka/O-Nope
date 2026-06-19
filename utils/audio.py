@@ -44,12 +44,12 @@ def transcribe_audio_bytes(audio_bytes: bytes) -> str:
 import asyncio
 import edge_tts
 
-async def generate_tts(text: str, voice: str = "en-US-AriaNeural", output_file: str = "temp_tts.mp3"):
+async def generate_tts(text: str, voice: str = "en-US-AriaNeural", output_file: str = "temp_tts.mp3", rate: str = "+0%", pitch: str = "+0Hz"):
     """
     Generates an MP3 file using edge-tts asynchronously.
     """
     try:
-        communicate = edge_tts.Communicate(text, voice)
+        communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
         await communicate.save(output_file)
         return output_file
     except Exception as e:

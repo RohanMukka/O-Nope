@@ -7,7 +7,7 @@ import CodeRoastMode from './components/CodeRoastMode'
 import './index.css'
 
 function App() {
-  const [activeMode, setActiveMode] = useState('interview')
+  const [activeMode, setActiveMode] = useState('roast')
 
   const renderContent = () => {
     switch (activeMode) {
@@ -28,23 +28,10 @@ function App() {
     <div className="app-container">
       <div className="sidebar glass-panel">
         <div>
-          <h1 style={{ color: 'var(--text-accent)' }}>O(Nope) 🔥</h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '0.5rem' }}>Your brutally honest AI coding coach.</p>
+          <h1 style={{ color: 'var(--text-accent)' }}>O(Nope)</h1>
         </div>
         
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '2rem' }}>
-          <div 
-            className={`nav-item ${activeMode === 'interview' ? 'active' : ''}`}
-            onClick={() => setActiveMode('interview')}
-          >
-            <Video size={18} /> Live Video Interview
-          </div>
-          <div 
-            className={`nav-item ${activeMode === 'think' ? 'active' : ''}`}
-            onClick={() => setActiveMode('think')}
-          >
-            <MessageCircle size={18} /> Think Out Loud
-          </div>
           <div 
             className={`nav-item ${activeMode === 'roast' ? 'active' : ''}`}
             onClick={() => setActiveMode('roast')}
@@ -56,6 +43,18 @@ function App() {
             onClick={() => setActiveMode('visualizer')}
           >
             <Eye size={18} /> Python Visualizer
+          </div>
+          <div 
+            className={`nav-item ${activeMode === 'think' ? 'active' : ''}`}
+            onClick={() => setActiveMode('think')}
+          >
+            <MessageCircle size={18} /> Think Out Loud
+          </div>
+          <div 
+            className={`nav-item ${activeMode === 'interview' ? 'active' : ''}`}
+            onClick={() => setActiveMode('interview')}
+          >
+            <Video size={18} /> Live Video Interview
           </div>
         </nav>
       </div>

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
+import { Volume2 } from 'lucide-react'
 
 const TAGLINES = [
   "Upload your code and let our compiler judge your life choices.",
@@ -41,8 +42,10 @@ export default function CodeRoastMode() {
   const [correctedCode, setCorrectedCode] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   const [tagline, setTagline] = useState(() => TAGLINES[Math.floor(Math.random() * TAGLINES.length)])
+  const [audioUrl, setAudioUrl] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const gutterRef = useRef<HTMLDivElement>(null)
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null)
 
   const handleScroll = () => {
     if (textareaRef.current && gutterRef.current) {
@@ -56,7 +59,25 @@ export default function CodeRoastMode() {
     }
   }, [code])
 
+  useEffect(() => {
+    return () => {
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause()
+      }
+    }
+  }, [])
+
   const lineCount = useMemo(() => code.split('\n').length, [code])
+
+  const playRoast = () => {
+    if (!audioUrl) return
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause()
+    }
+    const audio = new Audio('http://localhost:8000' + audioUrl)
+    activeAudioRef.current = audio
+    audio.play().catch(err => console.error("Audio playback error:", err))
+  }
 
 
 
@@ -66,6 +87,7 @@ export default function CodeRoastMode() {
     setRoast('')
     setCorrectedCode('')
     setErrors([])
+    setAudioUrl('')
 
     // Select a new random tagline different from current one
     setTagline(prev => {
@@ -87,6 +109,17 @@ export default function CodeRoastMode() {
       setRoast(data.roast || data.error || 'Error connecting to the backend API.')
       setCorrectedCode(data.corrected_code || '')
       setErrors(data.errors || [])
+      
+      if (data.audio_url) {
+        setAudioUrl(data.audio_url)
+        // Autoplay the roast audio
+        if (activeAudioRef.current) {
+          activeAudioRef.current.pause()
+        }
+        const audio = new Audio('http://localhost:8000' + data.audio_url)
+        activeAudioRef.current = audio
+        audio.play().catch(err => console.error("Audio playback error:", err))
+      }
     } catch (err) {
       setRoast('Error connecting to the backend API.')
     } finally {
@@ -202,7 +235,27 @@ export default function CodeRoastMode() {
           )}
           
           <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ color: '#eab308', marginBottom: '1rem' }}>The Roast:</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1rem' }}>
+              <h3 style={{ color: '#eab308', margin: 0 }}>The Roast:</h3>
+              {audioUrl && (
+                <button
+                  onClick={playRoast}
+                  className="btn-primary"
+                  style={{
+                    padding: '0.3rem 0.6rem',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--glass-border)',
+                    boxShadow: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  <Volume2 size={14} /> Listen
+                </button>
+              )}
+            </div>
             <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>{roast}</p>
           </div>
 

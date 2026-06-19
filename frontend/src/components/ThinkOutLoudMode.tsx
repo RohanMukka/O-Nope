@@ -131,6 +131,18 @@ export default function ThinkOutLoudMode() {
           <Mic size={24} />
           {loading ? 'Analyzing Speech...' : (isRecording ? 'Stop Recording' : 'Hold to Explain Algorithm')}
         </button>
+        {isRecording && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginTop: '0.5rem' }}>
+            <span style={{ color: '#ef4444', fontSize: '0.9rem', fontWeight: 600 }}>Audio Input Active</span>
+            <div className="sound-wave">
+              <div className="sound-wave-bar"></div>
+              <div className="sound-wave-bar"></div>
+              <div className="sound-wave-bar"></div>
+              <div className="sound-wave-bar"></div>
+              <div className="sound-wave-bar"></div>
+            </div>
+          </div>
+        )}
         {error && <p style={{ color: '#ef4444' }}>{error}</p>}
       </div>
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Mic } from 'lucide-react'
+import { Mic, Send } from 'lucide-react'
 
 const CHARACTERS = [
   { name: 'Sarah', role: 'Senior Engineer', image: '/assets/sarah.png' },
@@ -15,6 +15,7 @@ export default function InterviewMode() {
   const [loading, setLoading] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [scaleY, setScaleY] = useState(1)
+  const [inputText, setInputText] = useState('')
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -73,24 +74,10 @@ export default function InterviewMode() {
     }
   }
 
-  const processAudio = async (blob: Blob) => {
+  const sendChatMessage = async (userText: string) => {
     setLoading(true)
-    
-    // 1. Transcribe audio using backend
-    const formData = new FormData()
-    formData.append('audio', blob, 'recording.wav')
-    
     try {
-      const transcribeRes = await fetch('http://localhost:8000/api/think_aloud', {
-        method: 'POST',
-        body: formData
-      })
-      const transcribeData = await transcribeRes.json()
-      const userText = transcribeData.transcription
-      
-      if (!userText) throw new Error("Transcription failed")
-      
-      // 2. Send to Interview LLM
+      // Send to Interview LLM
       const chatFormData = new FormData()
       chatFormData.append('role', character.role)
       chatFormData.append('score', score.toString())
@@ -111,7 +98,7 @@ export default function InterviewMode() {
       ]
       setHistory(newHistory)
       
-      // 3. Play TTS Audio and animate avatar
+      // Play TTS Audio and animate avatar
       if (chatData.audio_url) {
         playAudioWithLipSync('http://localhost:8000' + chatData.audio_url)
       }
@@ -120,6 +107,37 @@ export default function InterviewMode() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const processAudio = async (blob: Blob) => {
+    setLoading(true)
+    
+    // 1. Transcribe audio using backend
+    const formData = new FormData()
+    formData.append('audio', blob, 'recording.wav')
+    
+    try {
+      const transcribeRes = await fetch('http://localhost:8000/api/think_aloud', {
+        method: 'POST',
+        body: formData
+      })
+      const transcribeData = await transcribeRes.json()
+      const userText = transcribeData.transcription
+      
+      if (!userText) throw new Error("Transcription failed")
+      
+      await sendChatMessage(userText)
+    } catch (err) {
+      console.error(err)
+      setLoading(false)
+    }
+  }
+
+  const handleSendText = async () => {
+    if (!inputText.trim() || loading || isRecording) return
+    const text = inputText.trim()
+    setInputText('')
+    await sendChatMessage(text)
   }
 
   const playAudioWithLipSync = async (url: string) => {
@@ -227,21 +245,78 @@ export default function InterviewMode() {
             )}
           </div>
           
-          <button 
-            onClick={isRecording ? stopRecording : startRecording}
-            className="btn-primary"
-            style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              gap: '0.5rem',
-              background: isRecording ? '#ef4444' : undefined,
-              boxShadow: isRecording ? '0 0 15px rgba(239, 68, 68, 0.5)' : undefined
-            }}
-          >
-            <Mic size={20} />
-            {isRecording ? 'Stop Recording' : 'Hold to Speak'}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+            <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder={isRecording ? "Recording audio..." : "Type your answer and press Enter..."}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                disabled={isRecording || loading}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSendText()
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  padding: '0.8rem',
+                  paddingRight: isRecording ? '3.5rem' : '0.8rem',
+                  fontSize: '14px',
+                  outline: 'none',
+                  width: '100%'
+                }}
+              />
+              {isRecording && (
+                <div style={{ position: 'absolute', right: '1rem', pointerEvents: 'none' }}>
+                  <div className="sound-wave">
+                    <div className="sound-wave-bar"></div>
+                    <div className="sound-wave-bar"></div>
+                    <div className="sound-wave-bar"></div>
+                    <div className="sound-wave-bar"></div>
+                    <div className="sound-wave-bar"></div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <button
+              onClick={handleSendText}
+              disabled={!inputText.trim() || loading || isRecording}
+              className="btn-primary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0.8rem 1.2rem',
+                opacity: !inputText.trim() || loading || isRecording ? 0.5 : 1,
+                cursor: !inputText.trim() || loading || isRecording ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <Send size={18} />
+            </button>
+
+            <button 
+              onClick={isRecording ? stopRecording : startRecording}
+              className="btn-primary"
+              disabled={loading}
+              style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                padding: '0.8rem 1.2rem',
+                background: isRecording ? '#ef4444' : undefined,
+                boxShadow: isRecording ? '0 0 15px rgba(239, 68, 68, 0.5)' : undefined
+              }}
+            >
+              <Mic size={18} />
+              <span style={{ marginLeft: '0.3rem' }}>{isRecording ? 'Stop' : 'Speak'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Right: Transcript */}

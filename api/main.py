@@ -30,7 +30,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+assets_dir = os.path.join(BASE_DIR, "assets")
+app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 DSA_PROBLEMS = {
     "two_sum": {
@@ -161,10 +163,30 @@ async def roast_code(
         if "error" in response_data:
             return JSONResponse(status_code=500, content={"error": response_data["error"]})
             
+        roast_text = response_data.get("roast", "No roast generated.")
+        
+        # Adjust vocal style parameters per intensity to project emotion
+        if intensity == "Constructive":
+            voice = "en-US-AriaNeural"
+            rate = "+0%"
+            pitch = "+0Hz"
+        elif intensity == "Brutal":
+            voice = "en-US-GuyNeural"
+            rate = "+12%"
+            pitch = "-10%"
+        else: # Demeaning
+            voice = "en-GB-SoniaNeural"
+            rate = "-5%"
+            pitch = "+10%"
+            
+        audio_file = f"temp_{uuid.uuid4()}.mp3"
+        audio_path = await generate_tts(roast_text, voice=voice, output_file=audio_file, rate=rate, pitch=pitch)
+        
         return {
-            "roast": response_data.get("roast", "No roast generated."), 
+            "roast": roast_text, 
             "corrected_code": response_data.get("corrected_code", code),
-            "errors": errors
+            "errors": errors,
+            "audio_url": f"/api/audio/{audio_file}" if audio_path else None
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
