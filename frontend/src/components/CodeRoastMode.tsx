@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Volume2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import Editor from '@monaco-editor/react'
 
 const TAGLINES = [
   "Upload your code and let our compiler judge your life choices.",
@@ -42,10 +43,8 @@ export default function CodeRoastMode() {
   const [correctedCode, setCorrectedCode] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   const [tagline, setTagline] = useState(() => TAGLINES[Math.floor(Math.random() * TAGLINES.length)])
-  const [audioUrl, setAudioUrl] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const gutterRef = useRef<HTMLDivElement>(null)
-  const activeAudioRef = useRef<HTMLAudioElement | null>(null)
 
   const handleScroll = () => {
     if (textareaRef.current && gutterRef.current) {
@@ -59,27 +58,7 @@ export default function CodeRoastMode() {
     }
   }, [code])
 
-  useEffect(() => {
-    return () => {
-      if (activeAudioRef.current) {
-        activeAudioRef.current.pause()
-      }
-    }
-  }, [])
-
   const lineCount = useMemo(() => code.split('\n').length, [code])
-
-  const playRoast = () => {
-    if (!audioUrl) return
-    if (activeAudioRef.current) {
-      activeAudioRef.current.pause()
-    }
-    const audio = new Audio('http://localhost:8000' + audioUrl)
-    activeAudioRef.current = audio
-    audio.play().catch(err => console.error("Audio playback error:", err))
-  }
-
-
 
   const handleRoast = async () => {
     if (!code.trim()) return
@@ -87,7 +66,6 @@ export default function CodeRoastMode() {
     setRoast('')
     setCorrectedCode('')
     setErrors([])
-    setAudioUrl('')
 
     // Select a new random tagline different from current one
     setTagline(prev => {
@@ -109,17 +87,6 @@ export default function CodeRoastMode() {
       setRoast(data.roast || data.error || 'Error connecting to the backend API.')
       setCorrectedCode(data.corrected_code || '')
       setErrors(data.errors || [])
-      
-      if (data.audio_url) {
-        setAudioUrl(data.audio_url)
-        // Autoplay the roast audio
-        if (activeAudioRef.current) {
-          activeAudioRef.current.pause()
-        }
-        const audio = new Audio('http://localhost:8000' + data.audio_url)
-        activeAudioRef.current = audio
-        audio.play().catch(err => console.error("Audio playback error:", err))
-      }
     } catch (err) {
       setRoast('Error connecting to the backend API.')
     } finally {
@@ -148,78 +115,43 @@ export default function CodeRoastMode() {
         </div>
       </div>
       
-      <div className="glass-panel" style={{ padding: '1rem' }}>
+      <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column' }}>
         <div style={{
-          display: 'flex',
-          background: 'rgba(0, 0, 0, 0.2)',
+          background: 'rgba(0, 0, 0, 0.4)',
           border: '1px solid var(--glass-border)',
           borderRadius: '8px',
-          fontFamily: "JetBrains Mono, Fira Code, Consolas, Monaco, 'Courier New', monospace",
-          fontSize: '14px',
-          lineHeight: '1.5rem',
-          marginBottom: '1rem',
-          height: '220px',
-          position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          minHeight: '300px',
+          height: '40vh',
+          marginBottom: '1rem'
         }}>
-          {/* Gutter */}
-          <div 
-            ref={gutterRef}
-            style={{
-              padding: '0.8rem 0',
-              width: '3.5rem',
-              background: 'rgba(0, 0, 0, 0.15)',
-              borderRight: '1px solid var(--glass-border)',
-              color: '#64748b',
-              textAlign: 'right',
-              paddingRight: '0.8rem',
-              userSelect: 'none',
-              overflowY: 'hidden',
-              boxSizing: 'border-box',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'stretch'
-            }}
-          >
-            {Array.from({ length: lineCount }).map((_, index) => (
-              <div key={index} style={{ height: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                {index + 1}
-              </div>
-            ))}
-          </div>
-          
-          {/* Textarea */}
-          <textarea 
-            ref={textareaRef}
+          <Editor
+            height="100%"
+            defaultLanguage="python"
+            theme="vs-dark"
             value={code}
-            onChange={(e) => setCode(e.target.value)}
-            onScroll={handleScroll}
-            wrap="off"
-            placeholder="Paste your python code here..."
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              borderRadius: 0,
-              color: 'white',
-              padding: '0.8rem',
-              margin: 0,
+            onChange={(val) => setCode(val || '')}
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
               fontFamily: "JetBrains Mono, Fira Code, Consolas, Monaco, 'Courier New', monospace",
-              fontSize: '14px',
-              lineHeight: '1.5rem',
-              resize: 'none',
-              overflowY: 'auto',
-              overflowX: 'auto',
-              whiteSpace: 'pre',
-              outline: 'none',
-              boxSizing: 'border-box',
-              height: '100%',
+              scrollBeyondLastLine: false,
+              wordWrap: 'on',
+              padding: { top: 16, bottom: 16 }
             }}
           />
         </div>
-        <button className="btn-primary" onClick={handleRoast} disabled={loading}>
-          {loading ? 'Analyzing...' : 'Roast Me'}
+        <button 
+          className="btn-primary" 
+          onClick={handleRoast} 
+          disabled={loading}
+          style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="animate-spin" size={18} /> Analyzing Codebase...
+            </>
+          ) : 'Roast Me'}
         </button>
       </div>
 
@@ -235,27 +167,7 @@ export default function CodeRoastMode() {
           )}
           
           <div style={{ marginBottom: '2rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1rem' }}>
-              <h3 style={{ color: '#eab308', margin: 0 }}>The Roast:</h3>
-              {audioUrl && (
-                <button
-                  onClick={playRoast}
-                  className="btn-primary"
-                  style={{
-                    padding: '0.3rem 0.6rem',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--glass-border)',
-                    boxShadow: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem',
-                    fontSize: '0.8rem'
-                  }}
-                >
-                  <Volume2 size={14} /> Listen
-                </button>
-              )}
-            </div>
+            <h3 style={{ color: '#eab308', marginBottom: '1rem' }}>The Roast:</h3>
             <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>{roast}</p>
           </div>
 
