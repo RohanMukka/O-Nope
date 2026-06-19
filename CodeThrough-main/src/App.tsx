@@ -19,7 +19,7 @@ export default function App() {
   const [showConsole, setShowConsole] = useState(false);
   const [hasRun, setHasRun] = useState(false);
 
-  const { snapshots, consoleLogs, error, run, reset } = useTracer();
+  const { snapshots, consoleLogs, error, run, reset, loadTrace } = useTracer();
   const {
     currentIndex,
     isPlaying,
@@ -33,6 +33,20 @@ export default function App() {
     activeSnapshot,
     previousSnapshot,
   } = usePlayback(snapshots);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'LOAD_TRACE') {
+        const { code: incomingCode, snapshots: newSnapshots, consoleLogs: newLogs, error: newError } = event.data;
+        if (incomingCode) setCode(incomingCode);
+        loadTrace(newSnapshots || [], newLogs || [], newError || null);
+        setHasRun(true);
+        resetPlayback(false);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [loadTrace, resetPlayback]);
 
   const handleRun = useCallback(() => {
     const result = run(code);

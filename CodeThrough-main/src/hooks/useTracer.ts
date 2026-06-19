@@ -36,5 +36,11 @@ export function useTracer() {
     setError(null);
   }, []);
 
-  return { snapshots, consoleLogs, error, isRunning, run, reset };
+  const loadTrace = useCallback((newSnapshots: Snapshot[], logs: string[] = [], newError: string | null = null) => {
+    setSnapshots(newSnapshots);
+    setConsoleLogs(logs);
+    setError(newError);
+  }, []);
+
+  return { snapshots, consoleLogs, error, isRunning, run, reset, loadTrace };
 }
