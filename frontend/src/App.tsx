@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Video, Mic, TerminalSquare, Eye } from 'lucide-react'
+import { Video, Mic, TerminalSquare, Eye, MessageCircle } from 'lucide-react'
 import InterviewMode from './components/InterviewMode'
+import ThinkOutLoudMode from './components/ThinkOutLoudMode'
 import VisualizerMode from './components/VisualizerMode'
 import CodeRoastMode from './components/CodeRoastMode'
 import './index.css'
@@ -12,6 +13,8 @@ function App() {
     switch (activeMode) {
       case 'interview':
         return <InterviewMode />
+      case 'think':
+        return <ThinkOutLoudMode />
       case 'roast':
         return <CodeRoastMode />
       case 'visualizer':
@@ -35,6 +38,12 @@ function App() {
             onClick={() => setActiveMode('interview')}
           >
             <Video size={18} /> Live Video Interview
+          </div>
+          <div 
+            className={`nav-item ${activeMode === 'think' ? 'active' : ''}`}
+            onClick={() => setActiveMode('think')}
+          >
+            <MessageCircle size={18} /> Think Out Loud
           </div>
           <div 
             className={`nav-item ${activeMode === 'roast' ? 'active' : ''}`}

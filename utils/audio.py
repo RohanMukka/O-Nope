@@ -1,16 +1,17 @@
 import os
-import whisper
 import warnings
 
-# Suppress FP16 warnings on CPU
-warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
-
-# Load model globally to avoid reloading on every transcription
-# Using base to ensure it runs fast on CPU
 try:
-    model = whisper.load_model("base")
-except Exception as e:
-    print(f"Failed to load whisper model: {e}")
+    import whisper
+    # Suppress FP16 warnings on CPU
+    warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
+    try:
+        model = whisper.load_model("base")
+    except Exception as e:
+        print(f"Failed to load whisper model: {e}")
+        model = None
+except ImportError:
+    print("Warning: whisper is not installed. Audio transcription will not work.")
     model = None
 
 def transcribe_audio_bytes(audio_bytes: bytes) -> str:

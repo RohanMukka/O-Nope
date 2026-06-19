@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { Mic } from 'lucide-react'
 
 const CHARACTERS = [
   { name: 'Sarah', role: 'Senior Engineer', image: '/assets/sarah.png' },

@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+*.wav
+temp_*.mp3
+node_modules/
+dist/
+.DS_Store
+frontend/node_modules/
+frontend/dist/
+venv/

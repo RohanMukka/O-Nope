@@ -97,3 +97,9 @@ input, textarea, select {
   padding: 0.8rem;
   width: 100%;
 }
+
+option {
+  background: #0f172a;
+  color: white;
+}
+
