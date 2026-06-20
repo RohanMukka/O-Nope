@@ -8,6 +8,7 @@ export default function CodeVisualizerMode() {
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [visualizerSteps, setVisualizerSteps] = useState<any[]>([])
+  const [error, setError] = useState('')
   
   const editorRef = useRef<any>(null)
   const decorationsRef = useRef<any>(null)
@@ -39,6 +40,7 @@ export default function CodeVisualizerMode() {
     if (!code.trim()) return
     setLoading(true)
     setVisualizerSteps([])
+    setError('')
     
     try {
       const formData = new FormData()
@@ -46,11 +48,14 @@ export default function CodeVisualizerMode() {
       
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/visualize`, { method: 'POST', body: formData })
       const data = await res.json()
-      if (data.steps) {
+      if (data.error) {
+        setError(data.error)
+      } else if (data.steps) {
         setVisualizerSteps(data.steps)
       }
     } catch (e) {
       console.error(e)
+      setError("Failed to communicate with execution server.")
     } finally {
       setLoading(false)
     }
@@ -121,7 +126,15 @@ export default function CodeVisualizerMode() {
 
         {/* Right Panel: Trace Viewer */}
         <div className="glass-panel" style={{ flex: 1, padding: '2rem', overflowY: 'auto', borderTop: '4px solid var(--text-warning)', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {visualizerSteps.length === 0 ? (
+          {error ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '1rem', color: 'var(--text-accent)' }}>
+              <Terminal size={48} />
+              <div className="font-mono" style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                <p style={{ fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '0.5rem', color: 'var(--text-accent)' }}>Tracer Error</p>
+                <p style={{ color: '#aaa', wordBreak: 'break-word' }}>{error}</p>
+              </div>
+            </div>
+          ) : visualizerSteps.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', opacity: 0.4, gap: '1rem' }}>
               <Terminal size={48} color="var(--text-warning)" />
               <div className="font-mono" style={{ textAlign: 'center', color: '#888', fontSize: '0.85rem' }}>
