@@ -316,5 +316,14 @@ def reset_user_profile(db: Session = Depends(get_db)):
     db.commit()
     return {"status": "ok", "new_score": 100.0}
 
+@app.get("/api/debug-version")
+def debug_version():
+    import httpx
+    import groq
+    return {
+        "httpx": httpx.__version__,
+        "groq": groq.__version__
+    }
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
