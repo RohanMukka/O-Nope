@@ -313,7 +313,7 @@ export default function InterviewMode() {
             <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
               <input
                 type="text"
-                placeholder={isRecording ? "RECORDING AUDIO..." : "TYPE YOUR PATHETIC DEFENSE AND PRESS ENTER..."}
+                placeholder={isRecording ? "RECORDING AUDIO..." : "TYPE..."}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 disabled={isRecording || loading}
