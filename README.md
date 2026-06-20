@@ -1,4 +1,4 @@
-# O(Nope) 🔥 - The Ultimate Technical Interview Simulator
+# O(Nope) 🔥
 ### *Get roasted, visualize your code, and learn to pass.*
 
 ## Inspiration
