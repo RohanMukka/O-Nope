@@ -11,7 +11,13 @@ import io
 import ast
 import re
 import asyncio
+from sqlalchemy.orm import Session
+from fastapi import Depends
 
+from . import models, database
+from .database import engine, get_db
+
+models.Base.metadata.create_all(bind=engine)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -19,7 +25,7 @@ from utils.llm import generate_json_response, query_llm, stream_llm_response_asy
 from utils.audio import generate_tts, transcribe_audio_bytes
 from utils.ast_checker import analyze_code
 from utils.sandbox import run_visualization_safe
-from prompts.system_prompts import INTERVIEW_SYSTEM_PROMPT, CODE_ROAST_SYSTEM_PROMPT, THINK_ALOUD_SYSTEM_PROMPT
+from prompts.system_prompts import INTERVIEW_SYSTEM_PROMPT, CODE_ROAST_SYSTEM_PROMPT, THINK_ALOUD_SYSTEM_PROMPT, THINK_ALOUD_CUSTOM_SYSTEM_PROMPT
 
 app = FastAPI(title="O(Nope) API")
 
@@ -66,7 +72,9 @@ def read_root():
 
 @app.post("/api/interview")
 async def interview(
-    role: str = Form(...),
+    character_name: str = Form(...),
+    target_role: str = Form(...),
+    experience: str = Form(...),
     score: int = Form(...),
     history: str = Form(...),
     user_message: str = Form(...)
@@ -87,7 +95,7 @@ async def interview(
         for msg in history_arr:
             context += f"{msg['role']}: {msg['content']}\n"
             
-        system_prompt = INTERVIEW_SYSTEM_PROMPT.format(role=role, score=score)
+        system_prompt = INTERVIEW_SYSTEM_PROMPT.format(target_role=target_role, experience=experience, score=score)
         
         response_data = generate_json_response(system_prompt, context)
         if "error" in response_data:
@@ -100,11 +108,11 @@ async def interview(
         new_score = max(0, min(10, score + score_change))
         
         voice_map = {
-            "Senior Engineer": "en-US-AriaNeural",
-            "Staff Engineer": "en-US-GuyNeural",
-            "Tech Lead": "en-US-ChristopherNeural"
+            "Sarah": "en-US-AriaNeural",
+            "David": "en-US-GuyNeural",
+            "Marcus": "en-US-ChristopherNeural"
         }
-        voice = voice_map.get(role, "en-US-AriaNeural")
+        voice = voice_map.get(character_name, "en-US-AriaNeural")
         
         audio_file = f"temp_{uuid.uuid4()}.mp3"
         audio_path = await generate_tts(ai_text, voice=voice, output_file=audio_file)
@@ -200,7 +208,8 @@ async def roast_code(
 @app.post("/api/think_aloud")
 async def think_aloud(
     audio: UploadFile = File(...),
-    problem_id: str = Form("two_sum")
+    problem_id: str = Form("two_sum"),
+    custom_problem: str = Form(None)
 ):
     """
     Handles the Think Out Loud mode. Transcribes audio on a threadpool, maps it to the expected optimal solution
@@ -213,15 +222,18 @@ async def think_aloud(
         if not transcription or transcription.startswith("Error"):
             return JSONResponse(status_code=500, content={"error": transcription or "Failed to transcribe audio"})
             
-        problem = DSA_PROBLEMS.get(problem_id, DSA_PROBLEMS["two_sum"])
-        
-        system_prompt = THINK_ALOUD_SYSTEM_PROMPT.format(
-            problem_name=problem["problem_name"],
-            brute_force=problem["brute_force"],
-            optimal_approach=problem["optimal_approach"],
-            time_complexity=problem["time_complexity"],
-            space_complexity=problem["space_complexity"]
-        )
+        if problem_id == "custom" and custom_problem:
+            system_prompt = THINK_ALOUD_CUSTOM_SYSTEM_PROMPT.format(problem_description=custom_problem)
+        else:
+            problem = DSA_PROBLEMS.get(problem_id, DSA_PROBLEMS["two_sum"])
+            
+            system_prompt = THINK_ALOUD_SYSTEM_PROMPT.format(
+                problem_name=problem["problem_name"],
+                brute_force=problem["brute_force"],
+                optimal_approach=problem["optimal_approach"],
+                time_complexity=problem["time_complexity"],
+                space_complexity=problem["space_complexity"]
+            )
         
         context = f"The user verbalized the following thought process:\n{transcription}"
         response_data = generate_json_response(system_prompt, context)
@@ -255,6 +267,41 @@ async def visualize_code(code: str = Form(...)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
+@app.get("/api/user/profile")
+def get_user_profile(db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == "developer").first()
+    if not user:
+        user = models.User(username="developer", score=100.0)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+    logs = db.query(models.TraumaLog).order_by(models.TraumaLog.timestamp.desc()).limit(10).all()
+    return {
+        "score": user.score,
+        "logs": [{"mode": log.mode, "details": log.details, "timestamp": log.timestamp.isoformat()} for log in logs]
+    }
+
+@app.post("/api/user/log_trauma")
+def log_trauma(
+    mode: str = Form(...),
+    details: str = Form(...),
+    score_change: float = Form(0.0),
+    db: Session = Depends(get_db)
+):
+    user = db.query(models.User).filter(models.User.username == "developer").first()
+    if not user:
+        user = models.User(username="developer", score=100.0)
+        db.add(user)
+        
+    user.score += score_change
+    
+    log = models.TraumaLog(mode=mode, details=details)
+    db.add(log)
+    db.commit()
+    
+    return {"status": "ok", "new_score": user.score}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

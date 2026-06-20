@@ -1,21 +1,26 @@
 import { useState, useRef, useEffect } from 'react'
-import { Mic, Send } from 'lucide-react'
+import { Mic, Send, Video } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 const CHARACTERS = [
-  { name: 'Sarah', role: 'Senior Engineer', image: '/assets/sarah.png' },
-  { name: 'David', role: 'Staff Engineer', image: '/assets/david.png' },
-  { name: 'Marcus', role: 'Tech Lead', image: '/assets/marcus.png' }
+  { name: 'Sarah', role: 'Senior Engineer' },
+  { name: 'David', role: 'Staff Engineer' },
+  { name: 'Marcus', role: 'Tech Lead' }
 ]
 
 export default function InterviewMode() {
   const [character, setCharacter] = useState(CHARACTERS[0])
+  const [targetRole, setTargetRole] = useState('Software Engineer')
+  const [experience, setExperience] = useState('Entry Level')
   const [score, setScore] = useState(5)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [history, setHistory] = useState<any[]>([])
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [scaleY, setScaleY] = useState(1)
   const [inputText, setInputText] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -26,22 +31,18 @@ export default function InterviewMode() {
 
   useEffect(() => {
     return () => {
-      // Clean up active playing audio
       if (activeAudioRef.current) {
         activeAudioRef.current.pause()
         activeAudioRef.current.src = ""
       }
-      // Cancel lip sync animation frames
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
-      // Stop all active microphone tracks
       if (mediaRecorderRef.current && mediaRecorderRef.current.stream) {
         mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
       }
     }
   }, [])
-
 
   const startRecording = async () => {
     try {
@@ -77,9 +78,10 @@ export default function InterviewMode() {
   const sendChatMessage = async (userText: string) => {
     setLoading(true)
     try {
-      // Send to Interview LLM
       const chatFormData = new FormData()
-      chatFormData.append('role', character.role)
+      chatFormData.append('character_name', character.name)
+      chatFormData.append('target_role', targetRole)
+      chatFormData.append('experience', experience)
       chatFormData.append('score', score.toString())
       chatFormData.append('history', JSON.stringify(history))
       chatFormData.append('user_message', userText)
@@ -98,12 +100,14 @@ export default function InterviewMode() {
       ]
       setHistory(newHistory)
       
-      // Play TTS Audio and animate avatar
       if (chatData.audio_url) {
         playAudioWithLipSync('http://localhost:8000' + chatData.audio_url)
       }
     } catch (err) {
       console.error(err)
+      setErrorMsg("Failed to communicate with AI.")
+      // restore text if failed
+      setInputText(userText)
     } finally {
       setLoading(false)
     }
@@ -111,8 +115,6 @@ export default function InterviewMode() {
 
   const processAudio = async (blob: Blob) => {
     setLoading(true)
-    
-    // 1. Transcribe audio using backend
     const formData = new FormData()
     formData.append('audio', blob, 'recording.wav')
     
@@ -133,10 +135,12 @@ export default function InterviewMode() {
     }
   }
 
-  const handleSendText = async () => {
+  const handleSendText = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault()
     if (!inputText.trim() || loading || isRecording) return
     const text = inputText.trim()
     setInputText('')
+    setErrorMsg('')
     await sendChatMessage(text)
   }
 
@@ -145,8 +149,8 @@ export default function InterviewMode() {
     audio.crossOrigin = "anonymous"
     activeAudioRef.current = audio
 
-    
     if (!audioContextRef.current) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
     }
     const ctx = audioContextRef.current
@@ -183,8 +187,8 @@ export default function InterviewMode() {
     }
     const average = sum / dataArray.length
     
-    // Scale slightly based on volume to simulate talking/breathing
-    const newScale = 1 + (average / 255) * 0.05
+    // Scale based on volume for orb pulsing
+    const newScale = 1 + (average / 255) * 0.5
     setScaleY(newScale)
     
     if (isSpeaking) {
@@ -196,51 +200,103 @@ export default function InterviewMode() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <div>
-          <h2 style={{ marginBottom: '0.2rem' }}>Live Video Interview</h2>
-          <p style={{ color: '#94a3b8' }}>Speak to your interviewer.</p>
+          <h2 className="glitch-hover" style={{ marginBottom: '0.2rem', color: 'var(--text-accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'uppercase' }}>
+            <Video size={24} /> LIVE INTERVIEW
+          </h2>
+          <p style={{ color: '#888', fontStyle: 'italic' }}>Defend your technical decisions.</p>
         </div>
         
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <select 
-            value={character.name} 
-            onChange={(e) => setCharacter(CHARACTERS.find(c => c.name === e.target.value)!)}
-            style={{ width: '200px' }}
-          >
-            {CHARACTERS.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-          </select>
-          <div className="glass-panel" style={{ padding: '0.5rem 1rem', color: '#eab308', fontWeight: 'bold' }}>
-            Score: {score}/10
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: '#666', textTransform: 'uppercase' }}>Interviewer:</span>
+            <select 
+              value={character.name} 
+              onChange={(e) => setCharacter(CHARACTERS.find(c => c.name === e.target.value)!)}
+              style={{ width: '200px', border: '1px solid var(--text-accent)' }}
+            >
+              {CHARACTERS.map(c => <option key={c.name} value={c.name}>{c.name} - {c.role}</option>)}
+            </select>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: '#666', textTransform: 'uppercase' }}>Target:</span>
+            <select value={targetRole} onChange={(e) => setTargetRole(e.target.value)} style={{ width: '160px', border: '1px solid #333' }}>
+              <option value="Software Engineer">Software Engineer</option>
+              <option value="Data Scientist">Data Scientist</option>
+              <option value="AI/ML Engineer">AI/ML Engineer</option>
+              <option value="DevOps">DevOps</option>
+            </select>
+            <select value={experience} onChange={(e) => setExperience(e.target.value)} style={{ width: '140px', border: '1px solid #333' }}>
+              <option value="Entry Level">Entry Level</option>
+              <option value="Mid-Level">Mid-Level</option>
+              <option value="Senior">Senior</option>
+            </select>
+          </div>
+          <div className="glass-panel" style={{ padding: '0.5rem 1rem', color: 'var(--text-warning)', fontWeight: 'bold', border: '2px solid var(--text-warning)', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+            <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '1.1rem', letterSpacing: '-2px' }}>
+              {'█'.repeat(score)}{'░'.repeat(10 - score)}
+            </span>
+            <span>SURVIVAL PROBABILITY: {score * 10}%</span>
           </div>
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: '2rem', flex: 1, overflow: 'hidden' }}>
-        {/* Left: Avatar Video Frame */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Left: Avatar / Orb Frame */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '350px' }}>
           <div className="glass-panel" style={{ 
             flex: 1, 
             display: 'flex', 
             justifyContent: 'center', 
             alignItems: 'center',
             overflow: 'hidden',
-            position: 'relative'
+            position: 'relative',
+            background: '#0a0a0a',
+            border: '1px solid var(--text-accent)'
           }}>
-            <img 
-              src={`http://localhost:8000${character.image}`} 
-              alt={character.name}
+            <div style={{ position: 'absolute', top: 10, left: 10, color: 'var(--text-accent)', fontSize: '0.8rem', fontWeight: 'bold' }}>
+              REC [•]
+            </div>
+
+            {/* Pulsing AI Core (Non-scary) */}
+            <motion.div 
               style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                transform: `scaleY(${scaleY})`,
-                transformOrigin: 'bottom',
-                transition: 'transform 0.05s ease-out',
-                filter: isSpeaking ? 'brightness(1.1)' : 'none'
+                width: '120px',
+                height: '120px',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, #fff 0%, var(--text-accent) 40%, #500 80%, #000 100%)',
+                boxShadow: '0 0 60px var(--text-accent), inset 0 0 20px #000',
+                border: '4px solid var(--text-accent)',
+                position: 'relative'
               }}
-            />
+              animate={{ 
+                scale: isSpeaking ? scaleY : [1, 1.05, 1],
+                opacity: isSpeaking ? 1 : [0.8, 1, 0.8],
+                filter: isSpeaking ? ['brightness(1)', 'brightness(1.5)', 'brightness(1)'] : 'brightness(1)'
+              }}
+              transition={isSpeaking ? { type: 'spring', damping: 10, stiffness: 100 } : { repeat: Infinity, duration: 2 }}
+            >
+              <motion.div 
+                style={{ 
+                  width: '30px', 
+                  height: '30px', 
+                  borderRadius: '50%', 
+                  background: '#fff', 
+                  position: 'absolute', 
+                  top: '50%', 
+                  left: '50%', 
+                  marginTop: '-15px',
+                  marginLeft: '-15px',
+                  boxShadow: '0 0 20px #fff' 
+                }}
+                animate={{ scale: isSpeaking ? [1, 1.5, 1] : 1 }}
+                transition={{ repeat: Infinity, duration: 0.2 }}
+              />
+            </motion.div>
+            
             {loading && (
-              <div style={{ position: 'absolute', background: 'rgba(0,0,0,0.5)', padding: '1rem', borderRadius: '8px' }}>
-                {character.name} is thinking...
+              <div style={{ position: 'absolute', bottom: 20, background: '#000', padding: '0.5rem 1rem', border: '1px solid var(--text-accent)', color: 'var(--text-accent)' }}>
+                {character.name.toUpperCase()} IS EVALUATING YOUR INCOMPETENCE...
               </div>
             )}
           </div>
@@ -249,28 +305,31 @@ export default function InterviewMode() {
             <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
               <input
                 type="text"
-                placeholder={isRecording ? "Recording audio..." : "Type your answer and press Enter..."}
+                placeholder={isRecording ? "RECORDING AUDIO..." : "TYPE YOUR PATHETIC DEFENSE AND PRESS ENTER..."}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 disabled={isRecording || loading}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSendText()
-                  }
+                  if (e.key === 'Enter') handleSendText()
                 }}
                 style={{
                   flex: 1,
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
+                  background: '#000',
+                  border: '2px solid var(--text-accent)',
                   color: 'white',
                   padding: '0.8rem',
                   paddingRight: isRecording ? '3.5rem' : '0.8rem',
                   fontSize: '14px',
                   outline: 'none',
-                  width: '100%'
+                  width: '100%',
+                  textTransform: 'uppercase'
                 }}
               />
+              {errorMsg && (
+                <div style={{ position: 'absolute', top: '-25px', left: 0, color: 'var(--danger-color)', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                  {errorMsg}
+                </div>
+              )}
               {isRecording && (
                 <div style={{ position: 'absolute', right: '1rem', pointerEvents: 'none' }}>
                   <div className="sound-wave">
@@ -285,6 +344,7 @@ export default function InterviewMode() {
             </div>
             
             <button
+              type="button"
               onClick={handleSendText}
               disabled={!inputText.trim() || loading || isRecording}
               className="btn-primary"
@@ -293,11 +353,16 @@ export default function InterviewMode() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: '0.8rem 1.2rem',
-                opacity: !inputText.trim() || loading || isRecording ? 0.5 : 1,
-                cursor: !inputText.trim() || loading || isRecording ? 'not-allowed' : 'pointer'
+                opacity: (!inputText.trim() || loading || isRecording) ? 0.5 : 1,
+                cursor: (!inputText.trim() || loading || isRecording) ? 'not-allowed' : 'pointer',
+                background: (!inputText.trim() || loading || isRecording) ? 'rgba(255, 193, 7, 0.3)' : 'var(--text-warning)',
+                color: '#000',
+                border: 'none',
+                position: 'relative',
+                zIndex: 10
               }}
             >
-              <Send size={18} />
+              <Send size={18} style={{ pointerEvents: 'none' }} />
             </button>
 
             <button 
@@ -309,34 +374,51 @@ export default function InterviewMode() {
                 justifyContent: 'center', 
                 alignItems: 'center', 
                 padding: '0.8rem 1.2rem',
-                background: isRecording ? '#ef4444' : undefined,
-                boxShadow: isRecording ? '0 0 15px rgba(239, 68, 68, 0.5)' : undefined
+                background: isRecording ? '#fff' : 'var(--text-accent)',
+                color: isRecording ? '#000' : '#fff'
               }}
             >
               <Mic size={18} />
-              <span style={{ marginLeft: '0.3rem' }}>{isRecording ? 'Stop' : 'Speak'}</span>
+              <span style={{ marginLeft: '0.3rem' }}>{isRecording ? 'HALT' : 'SPEAK'}</span>
             </button>
           </div>
         </div>
 
         {/* Right: Transcript */}
-        <div className="glass-panel" style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <h3 style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>Transcript</h3>
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {history.map((msg, i) => (
-              <div key={i} style={{ 
-                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                background: msg.role === 'user' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.05)',
-                padding: '1rem',
-                borderRadius: '12px',
-                maxWidth: '80%'
-              }}>
-                <strong style={{ display: 'block', marginBottom: '0.3rem', color: msg.role === 'user' ? '#38bdf8' : '#eab308' }}>
-                  {msg.role === 'user' ? 'You' : character.name}
-                </strong>
-                <span style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>{msg.content}</span>
+        <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="terminal-header" style={{ borderBottom: '1px solid #333' }}>
+            <div className="mac-btn mac-close"></div>
+            <div className="mac-btn mac-min"></div>
+            <div className="mac-btn mac-max"></div>
+            <span className="font-mono" style={{ marginLeft: '1rem', color: 'var(--text-accent)', fontSize: '0.75rem', textTransform: 'uppercase' }}>interview_log.txt</span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem', background: '#050505' }}>
+            {history.length === 0 ? (
+              <div className="font-mono" style={{ color: '#555', fontSize: '0.85rem' }}>
+                <p>SYSTEM INITIALIZED.</p>
+                <p>CALIBRATING CONDESCENSION PROTOCOLS...</p>
+                <p>LOADING ARCHIVED INTERVIEW QUESTIONS...</p>
+                <br/>
+                <p style={{ color: 'var(--text-accent)' }}>{character.name.toUpperCase()} IS READY TO JUDGE YOU.</p>
               </div>
-            ))}
+            ) : (
+              history.map((msg, i) => (
+                <div key={i} style={{ 
+                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  background: msg.role === 'user' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 42, 42, 0.05)',
+                  borderLeft: msg.role === 'user' ? 'none' : '3px solid var(--text-accent)',
+                  borderRight: msg.role === 'user' ? '3px solid #888' : 'none',
+                  padding: '1rem',
+                  maxWidth: '85%',
+                  borderRadius: '4px'
+                }}>
+                  <strong style={{ display: 'block', marginBottom: '0.4rem', color: msg.role === 'user' ? '#aaa' : 'var(--text-accent)', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em' }}>
+                    {msg.role === 'user' ? 'SUBJECT' : character.name.toUpperCase()}
+                  </strong>
+                  <span className={msg.role === 'user' ? '' : 'font-mono'} style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', fontSize: msg.role === 'user' ? '0.95rem' : '0.85rem' }}>{msg.content}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

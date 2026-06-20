@@ -1,37 +1,27 @@
 import os
-import warnings
-
-try:
-    import whisper
-    # Suppress FP16 warnings on CPU
-    warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
-    try:
-        model = whisper.load_model("base")
-    except Exception as e:
-        print(f"Failed to load whisper model: {e}")
-        model = None
-except ImportError:
-    print("Warning: whisper is not installed. Audio transcription will not work.")
-    model = None
-
+from groq import Groq
 import tempfile
+import asyncio
+import edge_tts
 
 def transcribe_audio_bytes(audio_bytes: bytes) -> str:
     """
     Takes raw audio bytes, converts to a format Whisper understands,
     and returns the transcribed text.
     """
-    if model is None:
-        return "Error: Whisper model not loaded."
-        
-    # Use unique temp file per request
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
         temp_file.write(audio_bytes)
         temp_filename = temp_file.name
         
     try:
-        result = model.transcribe(temp_filename)
-        return result["text"].strip()
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        with open(temp_filename, "rb") as file:
+            transcription = client.audio.transcriptions.create(
+              file=(os.path.basename(temp_filename), file.read()),
+              model="whisper-large-v3",
+              response_format="json",
+            )
+        return transcription.text.strip()
     except Exception as e:
         return f"Error during transcription: {e}"
     finally:

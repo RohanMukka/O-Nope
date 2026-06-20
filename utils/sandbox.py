@@ -19,7 +19,7 @@ def check_safety(code: str) -> bool:
                 if node.attr.startswith('__'):
                     return False
             if isinstance(node, ast.Name):
-                if node.id in ['eval', 'exec', 'open', 'compile', 'input', 'globals', 'locals', 'vars', 'getattr', 'setattr', 'delattr', 'hasattr']:
+                if node.id in ['eval', 'exec', 'open', 'compile', 'input', 'globals', 'locals', 'vars', 'getattr', 'setattr', 'delattr', 'hasattr', 'os', 'sys', 'subprocess']:
                     return False
         return True
     except Exception:
@@ -83,12 +83,11 @@ def _run_visualization_worker(code: str, result_queue: multiprocessing.Queue):
         original_stdout = sys.stdout
         sys.stdout = stdout_buffer
         
-        loc = {}
         glob = {"__builtins__": __builtins__}
         
         try:
             sys.settrace(trace_lines)
-            exec(code, glob, loc)
+            exec(code, glob)
         except Exception as e:
             tb = sys.exc_info()[2]
             err_line = 1
@@ -111,7 +110,7 @@ def _run_visualization_worker(code: str, result_queue: multiprocessing.Queue):
     except Exception as e:
         result_queue.put({"error": str(e)})
 
-def run_visualization_safe(code: str, timeout: int = 3) -> Dict[str, Any]:
+def run_visualization_safe(code: str, timeout: float = 1.5) -> Dict[str, Any]:
     """
     Runs visualization in a separate process with a strict timeout to prevent
     infinite loops and memory exhaustion attacks from blocking the main event loop.
@@ -120,14 +119,14 @@ def run_visualization_safe(code: str, timeout: int = 3) -> Dict[str, Any]:
     process = multiprocessing.Process(target=_run_visualization_worker, args=(code, queue))
     
     process.start()
-    process.join(timeout)
     
-    if process.is_alive():
-        process.terminate()
-        process.join()
+    try:
+        import queue as q
+        result = queue.get(timeout=timeout)
+        process.join(1)
+        return result
+    except q.Empty:
+        if process.is_alive():
+            process.terminate()
+            process.join()
         return {"error": "Execution timed out (infinite loop or memory exhaustion detected)."}
-        
-    if not queue.empty():
-        return queue.get()
-    else:
-        return {"error": "Process terminated unexpectedly."}
