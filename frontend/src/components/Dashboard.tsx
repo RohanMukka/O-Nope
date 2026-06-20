@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { Activity, ShieldAlert, TrendingDown } from 'lucide-react'
 
 export default function Dashboard({ setActiveMode }: { setActiveMode: (mode: string) => void }) {
-  const { score, loading } = useGlobalState()
+  const { score, loading, resetProfile } = useGlobalState()
 
   if (loading) {
     return (
@@ -35,6 +35,19 @@ export default function Dashboard({ setActiveMode }: { setActiveMode: (mode: str
             {score.toFixed(1)}
           </div>
           <p style={{ color: '#666', marginTop: '1rem', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase' }}>Starts at 100. Let's see how fast you drop to 0.</p>
+          <button 
+            className="cyber-button" 
+            onClick={resetProfile}
+            style={{ 
+              marginTop: '1.5rem', 
+              fontSize: '0.75rem', 
+              padding: '0.5rem 1rem', 
+              borderColor: 'var(--danger-color)', 
+              color: 'var(--danger-color)' 
+            }}
+          >
+            RESET SYSTEM
+          </button>
         </div>
 
         <div className="glass-panel" style={{ flex: 2, padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>

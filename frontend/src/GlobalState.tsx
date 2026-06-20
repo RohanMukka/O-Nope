@@ -12,6 +12,7 @@ type GlobalState = {
   loading: boolean;
   refreshProfile: () => Promise<void>;
   logTrauma: (mode: string, details: string, scoreChange: number) => Promise<void>;
+  resetProfile: () => Promise<void>;
 };
 
 const GlobalContext = createContext<GlobalState | undefined>(undefined);
@@ -55,12 +56,28 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const resetProfile = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/user/reset`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        await refreshProfile();
+      }
+    } catch (e) {
+      console.error('Failed to reset profile', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     refreshProfile();
   }, []);
 
   return (
-    <GlobalContext.Provider value={{ score, logs, loading, refreshProfile, logTrauma }}>
+    <GlobalContext.Provider value={{ score, logs, loading, refreshProfile, logTrauma, resetProfile }}>
       {children}
     </GlobalContext.Provider>
   );

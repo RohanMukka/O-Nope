@@ -303,5 +303,18 @@ def log_trauma(
     
     return {"status": "ok", "new_score": user.score}
 
+@app.post("/api/user/reset")
+def reset_user_profile(db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == "developer").first()
+    if not user:
+        user = models.User(username="developer", score=100.0)
+        db.add(user)
+    else:
+        user.score = 100.0
+        
+    db.query(models.TraumaLog).delete()
+    db.commit()
+    return {"status": "ok", "new_score": 100.0}
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
