@@ -83,7 +83,21 @@ def _run_visualization_worker(code: str, result_queue: multiprocessing.Queue):
         original_stdout = sys.stdout
         sys.stdout = stdout_buffer
         
-        glob = {"__builtins__": __builtins__, "__name__": "__main__"}
+        SAFE_BUILTINS = {
+            'abs': abs, 'all': all, 'any': any, 'bin': bin, 'bool': bool, 'chr': chr, 
+            'complex': complex, 'dict': dict, 'divmod': divmod, 'enumerate': enumerate, 
+            'filter': filter, 'float': float, 'format': format, 'hash': hash, 'hex': hex, 
+            'id': id, 'int': int, 'isinstance': isinstance, 'issubclass': issubclass, 
+            'len': len, 'list': list, 'map': map, 'max': max, 'min': min, 'oct': oct, 
+            'ord': ord, 'pow': pow, 'print': print, 'range': range, 'repr': repr, 
+            'reversed': reversed, 'round': round, 'set': set, 'slice': slice, 
+            'sorted': sorted, 'str': str, 'sum': sum, 'tuple': tuple, 'type': type, 
+            'zip': zip, 'Exception': Exception, 'ValueError': ValueError, 
+            'TypeError': TypeError, 'KeyError': KeyError, 'IndexError': IndexError,
+            'None': None, 'True': True, 'False': False
+        }
+        
+        glob = {"__builtins__": SAFE_BUILTINS, "__name__": "__main__"}
         
         try:
             sys.settrace(trace_lines)

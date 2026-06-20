@@ -135,7 +135,7 @@ export default function ThinkOutLoudMode() {
     }
     
     try {
-      const res = await fetch('http://localhost:8000/api/think_aloud', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/think_aloud`, {
         method: 'POST',
         body: formData
       })

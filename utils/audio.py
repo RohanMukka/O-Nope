@@ -1,10 +1,10 @@
 import os
-from groq import Groq
+from groq import AsyncGroq
 import tempfile
 import asyncio
 import edge_tts
 
-def transcribe_audio_bytes(audio_bytes: bytes) -> str:
+async def transcribe_audio_bytes(audio_bytes: bytes) -> str:
     """
     Takes raw audio bytes, converts to a format Whisper understands,
     and returns the transcribed text.
@@ -14,9 +14,9 @@ def transcribe_audio_bytes(audio_bytes: bytes) -> str:
         temp_filename = temp_file.name
         
     try:
-        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
         with open(temp_filename, "rb") as file:
-            transcription = client.audio.transcriptions.create(
+            transcription = await client.audio.transcriptions.create(
               file=(os.path.basename(temp_filename), file.read()),
               model="whisper-large-v3",
               response_format="json",

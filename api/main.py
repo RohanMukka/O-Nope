@@ -212,12 +212,12 @@ async def think_aloud(
     custom_problem: str = Form(None)
 ):
     """
-    Handles the Think Out Loud mode. Transcribes audio on a threadpool, maps it to the expected optimal solution
+    Handles the Think Out Loud mode. Transcribes audio asynchronously via Groq API, maps it to the expected optimal solution
     for a specific DSA problem, and generates a structured grading rubric.
     """
     try:
         audio_bytes = await audio.read()
-        transcription = await asyncio.to_thread(transcribe_audio_bytes, audio_bytes)
+        transcription = await transcribe_audio_bytes(audio_bytes)
         
         if not transcription or transcription.startswith("Error"):
             return JSONResponse(status_code=500, content={"error": transcription or "Failed to transcribe audio"})

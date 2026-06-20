@@ -23,7 +23,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const refreshProfile = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/user/profile');
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/user/profile`);
       if (res.ok) {
         const data = await res.json();
         setScore(data.score);
@@ -43,7 +43,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       formData.append('details', details);
       formData.append('score_change', scoreChange.toString());
 
-      const res = await fetch('http://localhost:8000/api/user/log_trauma', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/user/log_trauma`, {
         method: 'POST',
         body: formData
       });

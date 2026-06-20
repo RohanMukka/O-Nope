@@ -44,7 +44,7 @@ export default function CodeVisualizerMode() {
       const formData = new FormData()
       formData.append('code', code)
       
-      const res = await fetch('http://localhost:8000/api/visualize', { method: 'POST', body: formData })
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/visualize`, { method: 'POST', body: formData })
       const data = await res.json()
       if (data.steps) {
         setVisualizerSteps(data.steps)

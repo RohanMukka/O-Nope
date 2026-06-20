@@ -19,18 +19,18 @@ O(Nope) utilizes a highly optimized hybrid architecture:
 - **Frontend**: A sleek, reactive UI built with React, Vite, and Framer Motion, delivering a high-end brutalist aesthetic featuring CRT noise overlays, Vantablack, Cyberpunk Red, and Matrix Green accents. It seamlessly integrates `@monaco-editor/react` for a premium coding experience.
 - **Backend & AI**: A robust FastAPI Python server orchestrating multiple AI components.
 - **Cognitive Engine**: We leverage Groq's LPU API with the LLaMA-3.3-70B model. This deterministic tensor streaming architecture ensures instantaneous, sub-second responses necessary for a fluid conversational experience.
-- **Speech-to-Text**: Real-time browser microphone access routes audio to a local OpenAI Whisper model for rapid transcription.
+- **Speech-to-Text**: Real-time browser microphone access routes audio to the Groq Whisper API for ultra-fast, low-latency transcription.
 - **Deterministic Static Analysis & Tracing**: We utilize the Python `ast` and `pyflakes` modules to run deterministic static code analysis *before* consulting the LLM. The Forensic Visualizer utilizes a custom `sys.settrace` sandbox executed in isolated `multiprocessing` threads to prevent system compromise while capturing step-by-step memory states.
 
 ## Challenges we ran into
 Building a multimodal, real-time application in a hackathon timeframe presented massive hurdles:
-- **Audio Latency**: Initial attempts to process audio caused severe latency. We overcame this by optimizing the chunking and routing of `.wav` files to the local Whisper model, ensuring the conversation didn't feel sluggish.
+- **Audio Latency**: Initial attempts to process audio caused severe latency. We overcame this by optimizing the chunking and routing of `.wav` files to the asynchronous Groq Whisper API, ensuring the conversation didn't feel sluggish.
 - **State Management & UI Overhaul**: Decoupling the Code Roast from the Code Visualizer while maintaining smooth state and interactive Monaco line-highlighting required meticulous React hooks and ref-forwarding.
 - **Forcing JSON Output**: Making an LLM act as a strict mathematical judge and reliably return correctly formatted JSON objects (for the Think Out Loud rubric) required intense prompt engineering and strict temperature controls.
 
 ## Accomplishments that we're proud of
 - Achieving **sub-second latency** by integrating the Groq LPU API, making the live interview feel genuinely conversational.
-- Successfully integrating a frictionless, full-stack **Whisper speech-to-text pipeline** directly from a React browser application to a local Python backend.
+- Successfully integrating a frictionless, full-stack **Whisper speech-to-text pipeline** directly from a React browser application to the high-speed Groq API.
 - Developing the **Forensic Visualizer** from scratch, hooking directly into Python's `sys.settrace` and synchronizing the execution state natively with the Monaco editor DOM via delta decorations.
 - Delivering a **premium, highly-polished brutalist UI/UX** that completely disrupts the standard "friendly chatbot" paradigm.
 

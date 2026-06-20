@@ -88,7 +88,7 @@ export default function InterviewMode() {
       chatFormData.append('history', JSON.stringify(history))
       chatFormData.append('user_message', userText)
       
-      const chatRes = await fetch('http://localhost:8000/api/interview', {
+      const chatRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/interview`, {
         method: 'POST',
         body: chatFormData
       })
@@ -108,7 +108,7 @@ export default function InterviewMode() {
       }
       
       if (chatData.audio_url) {
-        playAudioWithLipSync('http://localhost:8000' + chatData.audio_url)
+        playAudioWithLipSync((import.meta.env.VITE_API_URL || 'http://localhost:8000') + chatData.audio_url)
       }
     } catch (err) {
       console.error(err)
@@ -126,7 +126,7 @@ export default function InterviewMode() {
     formData.append('audio', blob, 'recording.wav')
     
     try {
-      const transcribeRes = await fetch('http://localhost:8000/api/think_aloud', {
+      const transcribeRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/think_aloud`, {
         method: 'POST',
         body: formData
       })

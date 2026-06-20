@@ -17,17 +17,38 @@ def get_groq_client():
         raise ValueError("GROQ_API_KEY is not set in the environment.")
     return Groq(api_key=api_key)
 
-def generate_json_response(system_prompt: str, user_prompt: str, model: str = "llama-3.3-70b-versatile"):
+import re
+from typing import Any, Optional, Type
+from pydantic import BaseModel, ValidationError
+
+def extract_json_from_text(text: str) -> dict:
+    """Robustly extracts JSON from a string that might contain markdown or conversational filler."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+        
+    match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text)
+    if match:
+        try:
+            return json.loads(match.group(1))
+        except json.JSONDecodeError:
+            pass
+            
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1:
+        try:
+            return json.loads(text[start:end+1])
+        except json.JSONDecodeError:
+            pass
+            
+    raise ValueError("Failed to extract valid JSON from LLM response.")
+
+def generate_json_response(system_prompt: str, user_prompt: str, model: str = "llama-3.3-70b-versatile", response_model: Optional[Type[BaseModel]] = None):
     """
     Queries the Groq API and forces the output to be a valid JSON object.
-    
-    Args:
-        system_prompt (str): The system prompt defining the AI's persona and JSON schema.
-        user_prompt (str): The user input.
-        model (str): The Groq model to use. Defaults to LLaMA-3.3-70B.
-        
-    Returns:
-        dict: The parsed JSON response, or a dictionary containing an 'error' key if it fails.
+    Optionally validates against a Pydantic model.
     """
     client = get_groq_client()
     try:
@@ -42,7 +63,17 @@ def generate_json_response(system_prompt: str, user_prompt: str, model: str = "l
             response_format={"type": "json_object"}
         )
         response_text = completion.choices[0].message.content
-        return json.loads(response_text)
+        parsed_json = extract_json_from_text(response_text)
+        
+        if response_model:
+            # Validate using Pydantic
+            validated_data = response_model(**parsed_json)
+            return validated_data.model_dump()
+            
+        return parsed_json
+    except ValidationError as e:
+        print(f"Pydantic Validation Error: {e}")
+        return {"error": f"Schema Validation Failed: {e}"}
     except Exception as e:
         print(f"Error calling Groq API: {e}")
         return {"error": str(e)}

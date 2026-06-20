@@ -53,7 +53,7 @@ export default function CodeRoastMode() {
       formData.append('code', code)
       formData.append('intensity', intensity)
       
-      const res = await fetch('http://localhost:8000/api/roast', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/roast`, {
         method: 'POST',
         body: formData
       })
@@ -92,7 +92,7 @@ export default function CodeRoastMode() {
                   setRoast(prev => prev + data.text)
                 } else if (data.type === 'audio') {
                   if (activeAudioRef.current) activeAudioRef.current.pause()
-                  const audio = new Audio('http://localhost:8000' + data.url)
+                  const audio = new Audio((import.meta.env.VITE_API_URL || 'http://localhost:8000') + data.url)
                   activeAudioRef.current = audio
                   audio.play().catch(e => console.error("Audio playback error:", e))
                 } else if (data.type === 'error') {
