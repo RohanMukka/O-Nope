@@ -41,9 +41,7 @@ export default function Dashboard({ setActiveMode }: { setActiveMode: (mode: str
             style={{ 
               marginTop: '1.5rem', 
               fontSize: '0.75rem', 
-              padding: '0.5rem 1rem', 
-              borderColor: 'var(--danger-color)', 
-              color: 'var(--danger-color)' 
+              padding: '0.5rem 1rem'
             }}
           >
             RESET SYSTEM
