@@ -1,4 +1,4 @@
-# O(Nope) 🔥
+# O(Nope)
 ### *Get roasted, visualize your code, and learn to pass.*
 
 ## Inspiration
