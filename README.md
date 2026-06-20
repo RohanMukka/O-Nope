@@ -1,4 +1,5 @@
 # O(Nope) 🔥 - The Ultimate Technical Interview Simulator
+### *Get roasted, visualize your code, and learn to pass.*
 
 ## Inspiration
 The AI education market is filled with overly polite, highly agreeable AI tutors. While these tools are helpful for learning syntax, they fail to prepare developers for the high-pressure reality of technical screening interviews. Standard AI assistants are verbose and unwilling to point out flawed logic directly. My inspiration was to build a system that utilizes a strict, highly professional persona to force rapid improvement, while offering a brutal "Code Roast" mode for those who need an ego check.
