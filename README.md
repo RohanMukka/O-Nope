@@ -37,8 +37,8 @@ Building a multimodal, real-time application in a hackathon timeframe presented 
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/RohanMukka/O-Nope-.git
-cd O-Nope-
+git clone https://github.com/RohanMukka/O-Nope.git
+cd O-Nope
 ```
 
 ### 2. Set Up the Backend (FastAPI)
