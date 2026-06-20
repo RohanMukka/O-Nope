@@ -58,7 +58,7 @@ def _run_visualization_worker(code: str, result_queue: multiprocessing.Queue):
                 if curr_frame.f_code.co_filename == '<string>':
                     frame_locals = {}
                     for k, v in curr_frame.f_locals.items():
-                        if k.startswith('__') or k == 'trace_lines':
+                        if k.startswith('__') or k in ('trace_lines', 'spawn_main'):
                             continue
                         try:
                             # Verify JSON serializability
@@ -83,7 +83,7 @@ def _run_visualization_worker(code: str, result_queue: multiprocessing.Queue):
         original_stdout = sys.stdout
         sys.stdout = stdout_buffer
         
-        glob = {"__builtins__": __builtins__}
+        glob = {"__builtins__": __builtins__, "__name__": "__main__"}
         
         try:
             sys.settrace(trace_lines)

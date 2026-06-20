@@ -14,12 +14,12 @@ import asyncio
 from sqlalchemy.orm import Session
 from fastapi import Depends
 
-from . import models, database
-from .database import engine, get_db
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from api import models, database
+from api.database import engine, get_db
 
 models.Base.metadata.create_all(bind=engine)
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.llm import generate_json_response, query_llm, stream_llm_response_async
 from utils.audio import generate_tts, transcribe_audio_bytes

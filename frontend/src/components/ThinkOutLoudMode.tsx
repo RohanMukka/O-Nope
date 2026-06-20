@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Mic, MessageSquare, Loader2, CheckSquare, XSquare } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useGlobalState } from '../GlobalState'
 
 const PROBLEMS = [
   { id: 'two_sum', name: 'Two Sum' },
@@ -19,6 +20,7 @@ export default function ThinkOutLoudMode() {
   const [rubric, setRubric] = useState<any>(null)
   const [critique, setCritique] = useState('')
   const [error, setError] = useState('')
+  const { logTrauma } = useGlobalState()
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -145,6 +147,20 @@ export default function ThinkOutLoudMode() {
         setTranscription(data.transcription)
         setRubric(data.rubric)
         setCritique(data.critique)
+        
+        // Log trauma based on rubric
+        if (data.rubric) {
+           let scoreChange = 0;
+           if (!data.rubric.articulated_optimal_path) scoreChange -= 10;
+           if (!data.rubric.correct_time_complexity) scoreChange -= 5;
+           if (!data.rubric.correct_space_complexity) scoreChange -= 5;
+           
+           if (scoreChange < 0) {
+              logTrauma('Think Out Loud', `Failed to explain optimal approach for ${problemId}`, scoreChange);
+           } else if (data.rubric.articulated_optimal_path) {
+              logTrauma('Think Out Loud', `Successfully explained optimal approach for ${problemId}`, 10);
+           }
+        }
       }
     } catch (err) {
       console.error(err)
@@ -158,10 +174,10 @@ export default function ThinkOutLoudMode() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 className="glitch-hover" style={{ marginBottom: '0.5rem', color: 'var(--text-accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'uppercase' }}>
+          <h2 className="glitch-text" data-text="THINK OUT LOUD" style={{ marginBottom: '0.5rem', color: 'var(--text-accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'uppercase', fontWeight: 900 }}>
             <MessageSquare size={24} /> THINK OUT LOUD
           </h2>
-          <p style={{ color: '#888', fontStyle: 'italic' }}>Speak your algorithm out loud and get brutally graded.</p>
+          <p style={{ color: '#888', fontStyle: 'italic', fontWeight: 700 }}>Speak your algorithm out loud and get brutally graded.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <label style={{ color: '#888', textTransform: 'uppercase' }}>Target Algorithm:</label>
@@ -205,7 +221,7 @@ export default function ThinkOutLoudMode() {
             onMouseDown={startRecording}
             onMouseUp={stopRecording}
             onMouseLeave={isRecording ? stopRecording : undefined}
-            className="btn-primary"
+            className={isRecording ? "biometric-scanner" : ""}
             style={{ 
               display: 'flex', 
               flexDirection: 'column',
@@ -215,12 +231,12 @@ export default function ThinkOutLoudMode() {
               width: '160px',
               height: '160px',
               borderRadius: '50%',
-              background: isRecording ? 'var(--danger-color)' : '#1a1a1a',
+              background: isRecording ? 'var(--danger-color)' : 'transparent',
               color: isRecording ? '#fff' : 'var(--danger-color)',
-              boxShadow: isRecording ? '0 0 60px rgba(255, 42, 42, 0.6)' : 'none',
               border: isRecording ? 'none' : '2px solid var(--danger-color)',
               transition: 'all 0.2s ease',
-              position: 'relative'
+              position: 'relative',
+              cursor: loading ? 'not-allowed' : 'pointer'
             }}
             disabled={loading}
           >
@@ -264,8 +280,8 @@ export default function ThinkOutLoudMode() {
         </div>
 
         {/* Right: Live Rubric Dashboard */}
-        <div className="glass-panel" style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', border: '2px solid var(--text-accent)' }}>
-          <h3 className="glitch-hover" style={{ color: 'var(--text-accent)', marginBottom: '1.5rem', textTransform: 'uppercase', borderBottom: '2px solid var(--text-accent)', paddingBottom: '0.5rem' }}>
+        <div className="glass-panel" style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', border: '1px solid var(--text-accent)', boxShadow: 'inset 0 0 20px rgba(255,0,60,0.05)' }}>
+          <h3 className="glitch-text" data-text="EVALUATION MATRIX" style={{ color: 'var(--text-accent)', marginBottom: '1.5rem', textTransform: 'uppercase', borderBottom: '2px solid var(--text-accent)', paddingBottom: '0.5rem', fontWeight: 900 }}>
             EVALUATION MATRIX
           </h3>
           
@@ -305,25 +321,25 @@ export default function ThinkOutLoudMode() {
 
       {/* Bottom Half: Transcript & Critique Feed */}
       <div style={{ display: 'flex', gap: '1.5rem', height: '250px' }}>
-        <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '2px solid #333', overflow: 'hidden' }}>
-          <div style={{ background: '#111', padding: '0.5rem 1rem', borderBottom: '2px solid #333', display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'var(--text-warning)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 'bold' }}>LIVE TRANSCRIPT</span>
+        <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid #333', overflow: 'hidden' }}>
+          <div style={{ background: '#050505', padding: '0.5rem 1rem', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: 'var(--text-success)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 900 }}>LIVE TRANSCRIPT</span>
             {isRecording && <span className="glitch-hover" style={{ color: 'var(--danger-color)', fontSize: '0.85rem' }}>● REC</span>}
           </div>
-          <div style={{ padding: '1rem', flex: 1, overflowY: 'auto', background: '#000', fontFamily: 'Space Mono, monospace' }}>
+          <div style={{ padding: '1rem', flex: 1, overflowY: 'auto', background: '#000', fontFamily: 'Space Mono, monospace', fontSize: '0.9rem' }}>
             {transcription ? (
               <p style={{ color: '#fff', lineHeight: '1.6' }}>&gt; {transcription}</p>
             ) : isRecording ? (
-              <p style={{ color: '#555' }}>&gt; Capturing audio...</p>
+              <p style={{ color: '#888' }}>&gt; Capturing audio stream...</p>
             ) : (
-              <p style={{ color: '#333' }}>&gt; Awaiting input...</p>
+              <p style={{ color: '#333' }}>&gt; Awaiting vocal input...</p>
             )}
           </div>
         </div>
 
-        <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '2px solid var(--text-warning)', overflow: 'hidden' }}>
-          <div style={{ background: 'rgba(255, 193, 7, 0.1)', padding: '0.5rem 1rem', borderBottom: '2px solid var(--text-warning)' }}>
-            <span style={{ color: 'var(--text-warning)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 'bold' }}>SYSTEM CRITIQUE</span>
+        <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid var(--text-warning)', overflow: 'hidden', boxShadow: 'inset 0 0 10px rgba(255,176,0,0.05)' }}>
+          <div style={{ background: 'rgba(255, 176, 0, 0.1)', padding: '0.5rem 1rem', borderBottom: '1px solid var(--text-warning)' }}>
+            <span style={{ color: 'var(--text-warning)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 900 }}>SYSTEM CRITIQUE</span>
           </div>
           <div style={{ padding: '1rem', flex: 1, overflowY: 'auto', background: '#000' }}>
             {critique ? (

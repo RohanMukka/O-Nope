@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Loader2, AlertTriangle, Terminal, Share2 } from 'lucide-react'
 import Editor from '@monaco-editor/react'
 import { motion } from 'framer-motion'
-import TraceViewer from './TraceViewer'
+import ReactMarkdown from 'react-markdown'
 import { useGlobalState } from '../GlobalState'
 
 const TAGLINES = [
@@ -25,7 +25,6 @@ export default function CodeRoastMode() {
   const [tagline, setTagline] = useState(() => TAGLINES[Math.floor(Math.random() * TAGLINES.length)])
   
   const [shake, setShake] = useState(false)
-  const [visualizerSteps, setVisualizerSteps] = useState<any[]>([])
   const { logTrauma } = useGlobalState()
 
   const activeAudioRef = useRef<HTMLAudioElement | null>(null)
@@ -43,7 +42,6 @@ export default function CodeRoastMode() {
     setCorrectedCode('')
     setErrors([])
     setShake(false)
-    setVisualizerSteps([])
 
     setTagline(prev => {
       const remaining = TAGLINES.filter(t => t !== prev)
@@ -59,12 +57,6 @@ export default function CodeRoastMode() {
         method: 'POST',
         body: formData
       })
-
-      // Also fire visualizer in parallel
-      fetch('http://localhost:8000/api/visualize', { method: 'POST', body: formData })
-        .then(r => r.json())
-        .then(d => { if (d.steps) setVisualizerSteps(d.steps) })
-        .catch(console.error)
       
       if (!res.body) throw new Error("No response body")
       
@@ -136,14 +128,14 @@ My ego score is dropping fast.
   return (
     <motion.div 
       style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}
-      animate={shake ? { x: [-10, 10, -10, 10, 0], y: [-5, 5, -5, 5, 0] } : {}}
-      transition={{ duration: 0.4 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={shake ? "screen-shake" : ""}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 className="glitch-hover" style={{ marginBottom: '0.5rem', color: 'var(--text-accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Terminal size={24} />
-            THE CODE ROAST
+          <h2 className="glitch-hover" style={{ marginBottom: '0.2rem', color: 'var(--text-accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'uppercase', fontWeight: 900 }}>
+            <Terminal size={24} /> THE CODE ROAST
           </h2>
           <p style={{ color: '#888', fontStyle: 'italic' }}>{tagline}</p>
         </div>
@@ -165,11 +157,11 @@ My ego score is dropping fast.
         {/* Left Panel: Editor */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0 }}>
           <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div className="terminal-header">
+            <div className="terminal-header" style={{ borderBottom: '1px solid #333' }}>
               <div className="mac-btn mac-close"></div>
               <div className="mac-btn mac-min"></div>
               <div className="mac-btn mac-max"></div>
-              <span className="font-mono" style={{ marginLeft: '1rem', color: '#888', fontSize: '0.75rem' }}>roast_target.py</span>
+              <span className="font-mono" style={{ marginLeft: '1rem', color: 'var(--danger-color)', fontSize: '0.75rem', fontWeight: 'bold' }}>compiler_panic.log</span>
             </div>
             <div style={{
               background: '#000',
@@ -196,37 +188,21 @@ My ego score is dropping fast.
             </div>
           </div>
           <button 
-            className="btn-primary" 
+            className="cyber-button" 
             onClick={handleRoast} 
             disabled={loading || !code.trim()}
-            style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              gap: '0.5rem',
-              padding: '1.5rem',
-              fontSize: '1.2rem',
-              background: loading || !code.trim() ? '#1a1a1a' : 'var(--danger-color)',
-              color: loading || !code.trim() ? '#555' : '#fff',
-              border: 'none',
-              cursor: loading || !code.trim() ? 'not-allowed' : 'pointer'
-            }}
           >
             {loading ? (
-              <>
-                <Loader2 className="animate-spin" size={24} /> EXTRACTING INCOMPETENCE...
-              </>
-            ) : (
-              <>
-                <AlertTriangle size={24} /> INITIATE TEARDOWN
-              </>
-            )}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <Loader2 className="animate-spin" /> EXECUTING TEARDOWN...
+              </div>
+            ) : 'INITIATE TEARDOWN'}
           </button>
         </div>
 
         {/* Right Panel: Roast Output */}
         <div className="glass-panel" style={{ flex: 1, padding: '2rem', overflowY: 'auto', borderTop: '4px solid var(--text-warning)', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <h3 className="glitch-hover" style={{ color: 'var(--text-warning)', marginBottom: '1.5rem', textTransform: 'uppercase', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>
+          <h3 className="glitch-text" style={{ color: 'var(--text-warning)', marginBottom: '1.5rem', textTransform: 'uppercase', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>
             [ ANALYSIS LOG ]
           </h3>
 
@@ -244,8 +220,11 @@ My ego score is dropping fast.
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               {errors.length > 0 && (
-                <div style={{ borderLeft: '4px solid var(--text-accent)', paddingLeft: '1rem' }}>
-                  <h4 style={{ color: 'var(--text-accent)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>[FATAL] Syntax Errors Found:</h4>
+                <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(255, 0, 60, 0.1)', borderLeft: '4px solid var(--danger-color)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--danger-color)', marginBottom: '0.5rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                    <AlertTriangle size={18} />
+                    SYNTAX FATALITIES DETECTED
+                  </div>
                   <ul style={{ color: '#ffaaaa', paddingLeft: '1.5rem', listStyleType: 'square' }}>
                     {errors.map((e, i) => <li key={i}>{e}</li>)}
                   </ul>
@@ -253,16 +232,33 @@ My ego score is dropping fast.
               )}
               
               {roast && (
-                <div>
-                  <h4 style={{ color: 'var(--text-warning)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>System Output:</h4>
-                  <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#fff' }}>
-                    {roast}
+                <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderLeft: '4px solid var(--text-warning)' }}>
+                  <h4 style={{ color: 'var(--text-warning)', marginBottom: '1rem', textTransform: 'uppercase', fontWeight: 900 }}>SYSTEM OUTPUT:</h4>
+                  <div className="markdown-body" style={{ lineHeight: '1.6', fontSize: '0.9rem', color: '#ddd', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <ReactMarkdown
+                      components={{
+                        h3: ({node, ...props}) => <h3 style={{ color: 'var(--text-accent)', textTransform: 'uppercase', fontSize: '1.1rem', marginTop: '1rem', marginBottom: '0.5rem', fontWeight: 900 }} {...props} />,
+                        p: ({node, ...props}) => <p style={{ margin: 0 }} {...props} />,
+                        code: ({node, className, children, ...props}) => {
+                          const match = /language-(\w+)/.exec(className || '')
+                          return match ? (
+                            <div style={{ background: '#000', padding: '1rem', border: '1px solid #333', borderRadius: '4px', overflowX: 'auto', fontFamily: 'var(--font-mono)' }}>
+                              <code className={className} {...props}>{children}</code>
+                            </div>
+                          ) : (
+                            <code style={{ background: '#333', padding: '0.2rem 0.4rem', borderRadius: '2px', fontFamily: 'var(--font-mono)' }} {...props}>{children}</code>
+                          )
+                        }
+                      }}
+                    >
+                      {roast}
+                    </ReactMarkdown>
                     <motion.span 
                       animate={{ opacity: [1, 0, 1] }} 
                       transition={{ repeat: Infinity, duration: 0.8 }}
                       style={{ display: 'inline-block', width: '10px', height: '1.2em', background: 'var(--text-warning)', verticalAlign: 'middle', marginLeft: '5px' }}
                     />
-                  </p>
+                  </div>
                 </div>
               )}
 
@@ -280,12 +276,8 @@ My ego score is dropping fast.
                 </div>
               )}
               
-              {visualizerSteps.length > 0 && (
-                <TraceViewer steps={visualizerSteps} codeLines={code.split('\n')} />
-              )}
-              
               {!loading && (roast || errors.length > 0) && (
-                <button className="btn-primary" onClick={handleShare} style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', alignSelf: 'flex-start' }}>
+                <button className="cyber-button" onClick={handleShare} style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', alignSelf: 'flex-start' }}>
                   <Share2 size={18} />
                   SHARE HUMILIATION TO X
                 </button>

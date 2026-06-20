@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Video, TerminalSquare, MessageCircle, Activity } from 'lucide-react'
+import { Video, TerminalSquare, MessageCircle, Activity, Code2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import InterviewMode from './components/InterviewMode'
 import ThinkOutLoudMode from './components/ThinkOutLoudMode'
 import CodeRoastMode from './components/CodeRoastMode'
+import CodeVisualizerMode from './components/CodeVisualizerMode'
 import Dashboard from './components/Dashboard'
 import { GlobalProvider } from './GlobalState'
 import './index.css'
@@ -22,6 +23,8 @@ function AppContent() {
         return <ThinkOutLoudMode />
       case 'roast':
         return <CodeRoastMode />
+      case 'visualize':
+        return <CodeVisualizerMode />
       default:
         return <Dashboard setActiveMode={setActiveMode} />
     }
@@ -30,14 +33,16 @@ function AppContent() {
   return (
     <div className="app-container">
       <div className="sidebar">
-        <div>
-          <h1 className="glitch-hover" style={{ color: 'var(--text-accent)', fontSize: '2.5rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.1em' }}>O(Nope)</h1>
-          <p className="font-mono" style={{ color: '#666', fontSize: '0.8rem', marginTop: '0.5rem', textTransform: 'uppercase' }}>Terminal Environment v1.0.0</p>
+        <div style={{ marginBottom: '2rem' }}>
+          <h1 className="glitch-text" data-text="O(Nope)" style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--text-accent)', letterSpacing: '-0.05em', lineHeight: 1 }}>
+            O(Nope)
+          </h1>
         </div>
         
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '3rem' }}>
           {[
             { id: 'dashboard', icon: Activity, label: 'DASHBOARD' },
+            { id: 'visualize', icon: Code2, label: 'FORENSIC VISUALIZER' },
             { id: 'roast', icon: TerminalSquare, label: 'THE CODE ROAST' },
             { id: 'think', icon: MessageCircle, label: 'THINK OUT LOUD' },
             { id: 'interview', icon: Video, label: 'LIVE INTERVIEW' },
@@ -87,6 +92,13 @@ function AppContent() {
             )
           })}
         </nav>
+        <div style={{ marginTop: 'auto', padding: '1.5rem', background: 'rgba(255, 0, 60, 0.05)', borderRadius: '0', border: '1px solid rgba(255, 0, 60, 0.2)', textAlign: 'center' }}>
+          <div style={{ fontSize: '0.75rem', color: '#666', textTransform: 'uppercase', marginBottom: '0.5rem', fontWeight: 700 }}>SESSION STATUS</div>
+          <div className="font-mono" style={{ color: 'var(--text-accent)', fontSize: '0.85rem', fontWeight: 'bold' }}>
+            CONNECTED
+            <span className="blink">_</span>
+          </div>
+        </div>
       </div>
       
       <div className="main-content" style={{ position: 'relative' }}>

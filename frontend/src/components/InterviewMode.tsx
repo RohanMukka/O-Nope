@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Mic, Send, Video } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useGlobalState } from '../GlobalState'
 
 const CHARACTERS = [
   { name: 'Sarah', role: 'Senior Engineer' },
@@ -21,6 +22,7 @@ export default function InterviewMode() {
   const [scaleY, setScaleY] = useState(1)
   const [inputText, setInputText] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
+  const { logTrauma } = useGlobalState()
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -99,6 +101,11 @@ export default function InterviewMode() {
         { role: 'assistant', content: chatData.ai_text + "\n\nTip: " + chatData.tip }
       ]
       setHistory(newHistory)
+      
+      const scoreDiff = chatData.score - score
+      if (scoreDiff !== 0) {
+        logTrauma('Live Interview', `Grilled by ${character.name} (${targetRole}).`, scoreDiff)
+      }
       
       if (chatData.audio_url) {
         playAudioWithLipSync('http://localhost:8000' + chatData.audio_url)
@@ -200,10 +207,10 @@ export default function InterviewMode() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <div>
-          <h2 className="glitch-hover" style={{ marginBottom: '0.2rem', color: 'var(--text-accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'uppercase' }}>
+          <h2 className="glitch-text" data-text="LIVE INTERVIEW" style={{ marginBottom: '0.2rem', color: 'var(--text-accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'uppercase', fontWeight: 900 }}>
             <Video size={24} /> LIVE INTERVIEW
           </h2>
-          <p style={{ color: '#888', fontStyle: 'italic' }}>Defend your technical decisions.</p>
+          <p style={{ color: '#888', fontStyle: 'italic', fontWeight: 700 }}>Defend your technical decisions.</p>
         </div>
         
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -258,39 +265,40 @@ export default function InterviewMode() {
               REC [•]
             </div>
 
-            {/* Pulsing AI Core (Non-scary) */}
+            {/* Pulsing AI Core (Scary) */}
             <motion.div 
               style={{
-                width: '120px',
-                height: '120px',
+                width: '140px',
+                height: '140px',
                 borderRadius: '50%',
-                background: 'radial-gradient(circle, #fff 0%, var(--text-accent) 40%, #500 80%, #000 100%)',
-                boxShadow: '0 0 60px var(--text-accent), inset 0 0 20px #000',
-                border: '4px solid var(--text-accent)',
+                background: 'radial-gradient(circle, #fff 0%, var(--danger-color) 30%, #500 70%, #000 100%)',
+                boxShadow: '0 0 80px var(--danger-color), inset 0 0 40px #000',
+                border: '4px solid var(--danger-color)',
                 position: 'relative'
               }}
               animate={{ 
                 scale: isSpeaking ? scaleY : [1, 1.05, 1],
                 opacity: isSpeaking ? 1 : [0.8, 1, 0.8],
-                filter: isSpeaking ? ['brightness(1)', 'brightness(1.5)', 'brightness(1)'] : 'brightness(1)'
+                filter: isSpeaking ? ['brightness(1)', 'brightness(1.5)', 'brightness(1)'] : 'brightness(1)',
+                boxShadow: isSpeaking ? '0 0 120px var(--danger-color), inset 0 0 40px #000' : '0 0 80px var(--danger-color), inset 0 0 40px #000'
               }}
               transition={isSpeaking ? { type: 'spring', damping: 10, stiffness: 100 } : { repeat: Infinity, duration: 2 }}
             >
               <motion.div 
                 style={{ 
-                  width: '30px', 
-                  height: '30px', 
+                  width: '40px', 
+                  height: '40px', 
                   borderRadius: '50%', 
                   background: '#fff', 
                   position: 'absolute', 
                   top: '50%', 
                   left: '50%', 
-                  marginTop: '-15px',
-                  marginLeft: '-15px',
-                  boxShadow: '0 0 20px #fff' 
+                  marginTop: '-20px',
+                  marginLeft: '-20px',
+                  boxShadow: '0 0 30px #fff' 
                 }}
-                animate={{ scale: isSpeaking ? [1, 1.5, 1] : 1 }}
-                transition={{ repeat: Infinity, duration: 0.2 }}
+                animate={{ scale: isSpeaking ? [1, 1.8, 1] : 1 }}
+                transition={{ repeat: Infinity, duration: 0.1 }}
               />
             </motion.div>
             
@@ -347,19 +355,15 @@ export default function InterviewMode() {
               type="button"
               onClick={handleSendText}
               disabled={!inputText.trim() || loading || isRecording}
-              className="btn-primary"
+              className="cyber-button"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: '0.8rem 1.2rem',
                 opacity: (!inputText.trim() || loading || isRecording) ? 0.5 : 1,
-                cursor: (!inputText.trim() || loading || isRecording) ? 'not-allowed' : 'pointer',
-                background: (!inputText.trim() || loading || isRecording) ? 'rgba(255, 193, 7, 0.3)' : 'var(--text-warning)',
-                color: '#000',
-                border: 'none',
-                position: 'relative',
-                zIndex: 10
+                border: '1px solid var(--text-warning)',
+                color: 'var(--text-warning)'
               }}
             >
               <Send size={18} style={{ pointerEvents: 'none' }} />
@@ -367,15 +371,15 @@ export default function InterviewMode() {
 
             <button 
               onClick={isRecording ? stopRecording : startRecording}
-              className="btn-primary"
+              className="cyber-button"
               disabled={loading}
               style={{ 
                 display: 'flex', 
                 justifyContent: 'center', 
                 alignItems: 'center', 
                 padding: '0.8rem 1.2rem',
-                background: isRecording ? '#fff' : 'var(--text-accent)',
-                color: isRecording ? '#000' : '#fff'
+                background: isRecording ? 'var(--text-accent)' : 'transparent',
+                color: isRecording ? '#000' : 'var(--text-accent)'
               }}
             >
               <Mic size={18} />
@@ -386,36 +390,38 @@ export default function InterviewMode() {
 
         {/* Right: Transcript */}
         <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div className="terminal-header" style={{ borderBottom: '1px solid #333' }}>
+          <div className="terminal-header">
             <div className="mac-btn mac-close"></div>
             <div className="mac-btn mac-min"></div>
             <div className="mac-btn mac-max"></div>
-            <span className="font-mono" style={{ marginLeft: '1rem', color: 'var(--text-accent)', fontSize: '0.75rem', textTransform: 'uppercase' }}>interview_log.txt</span>
+            <span className="font-mono" style={{ marginLeft: '1rem', color: 'var(--text-success)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 900 }}>interview_log.sh</span>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem', background: '#050505' }}>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem', background: '#050505', border: '1px solid #111' }}>
             {history.length === 0 ? (
               <div className="font-mono" style={{ color: '#555', fontSize: '0.85rem' }}>
-                <p>SYSTEM INITIALIZED.</p>
-                <p>CALIBRATING CONDESCENSION PROTOCOLS...</p>
-                <p>LOADING ARCHIVED INTERVIEW QUESTIONS...</p>
+                <p>&gt; SYSTEM INITIALIZED.</p>
+                <p>&gt; CALIBRATING CONDESCENSION PROTOCOLS...</p>
+                <p>&gt; LOADING ARCHIVED INTERVIEW QUESTIONS...</p>
                 <br/>
-                <p style={{ color: 'var(--text-accent)' }}>{character.name.toUpperCase()} IS READY TO JUDGE YOU.</p>
+                <p className="glitch-text" data-text={`${character.name.toUpperCase()} IS READY TO JUDGE YOU.`} style={{ color: 'var(--danger-color)', fontWeight: 'bold' }}>{character.name.toUpperCase()} IS READY TO JUDGE YOU.</p>
+                <span className="blink">_</span>
               </div>
             ) : (
               history.map((msg, i) => (
                 <div key={i} style={{ 
                   alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  background: msg.role === 'user' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 42, 42, 0.05)',
-                  borderLeft: msg.role === 'user' ? 'none' : '3px solid var(--text-accent)',
-                  borderRight: msg.role === 'user' ? '3px solid #888' : 'none',
+                  background: msg.role === 'user' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 0, 60, 0.1)',
+                  borderLeft: msg.role === 'user' ? 'none' : '4px solid var(--danger-color)',
+                  borderRight: msg.role === 'user' ? '4px solid #888' : 'none',
                   padding: '1rem',
                   maxWidth: '85%',
-                  borderRadius: '4px'
+                  borderRadius: '0',
+                  boxShadow: msg.role === 'user' ? 'none' : 'inset 0 0 10px rgba(255,0,60,0.1)'
                 }}>
-                  <strong style={{ display: 'block', marginBottom: '0.4rem', color: msg.role === 'user' ? '#aaa' : 'var(--text-accent)', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em' }}>
+                  <strong style={{ display: 'block', marginBottom: '0.4rem', color: msg.role === 'user' ? '#aaa' : 'var(--danger-color)', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em', fontWeight: 900 }}>
                     {msg.role === 'user' ? 'SUBJECT' : character.name.toUpperCase()}
                   </strong>
-                  <span className={msg.role === 'user' ? '' : 'font-mono'} style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', fontSize: msg.role === 'user' ? '0.95rem' : '0.85rem' }}>{msg.content}</span>
+                  <span className={msg.role === 'user' ? '' : 'font-mono'} style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', fontSize: msg.role === 'user' ? '0.95rem' : '0.85rem', color: msg.role === 'user' ? '#fff' : '#ddd' }}>{msg.content}</span>
                 </div>
               ))
             )}
