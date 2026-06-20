@@ -1,7 +1,5 @@
 # O(Nope) 🔥 - The Ultimate Technical Interview Simulator
 
-![O(Nope) Interface](https://raw.githubusercontent.com/placeholder/image.png)
-
 ## Inspiration
 The artificial intelligence education market is incredibly saturated with overly polite, highly agreeable AI tutors. While these tools are helpful for learning syntax, they fail spectacularly at preparing developers for the high-pressure reality of technical screening interviews. Standard AI assistants are verbose and unwilling to point out flawed logic directly. Our inspiration was to build a system that utilizes a strict, highly professional persona to force rapid improvement, while offering a brutal "Code Roast" mode for those who need an ego check.
 
