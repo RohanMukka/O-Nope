@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { Activity, ShieldAlert, TrendingDown } from 'lucide-react'
 
 export default function Dashboard({ setActiveMode }: { setActiveMode: (mode: string) => void }) {
-  const { score, logs, loading } = useGlobalState()
+  const { score, loading } = useGlobalState()
 
   if (loading) {
     return (
