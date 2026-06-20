@@ -379,7 +379,7 @@ export default function InterviewMode() {
                 alignItems: 'center', 
                 padding: '0.8rem 1.2rem',
                 background: isRecording ? 'var(--text-accent)' : 'transparent',
-                color: isRecording ? '#000' : 'var(--text-accent)'
+                color: isRecording ? '#000' : undefined
               }}
             >
               <Mic size={18} />

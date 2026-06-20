@@ -218,9 +218,7 @@ export default function ThinkOutLoudMode() {
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            onMouseLeave={isRecording ? stopRecording : undefined}
+            onClick={isRecording ? stopRecording : startRecording}
             className={isRecording ? "biometric-scanner" : ""}
             style={{ 
               display: 'flex', 
@@ -250,7 +248,7 @@ export default function ThinkOutLoudMode() {
             <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
               <Mic size={40} />
               <span style={{ fontSize: '0.85rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center' }}>
-                {loading ? 'ANALYZING...' : (isRecording ? 'RELEASE' : 'HOLD TO SPEAK')}
+                {loading ? 'ANALYZING...' : (isRecording ? 'STOP' : 'TAP TO SPEAK')}
               </span>
             </div>
           </motion.button>
