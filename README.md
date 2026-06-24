@@ -66,3 +66,24 @@ cd O-Nope
    npm run dev
    ```
    *(Frontend runs on `http://localhost:5173`)*
+
+## Deployment
+
+The application is deployed as two separate services:
+
+### 1. Backend (Render)
+The FastAPI backend is deployed on [Render](https://render.com/).
+* **Environment Variables**:
+  * `GROQ_API_KEY`: Your Groq API key (e.g., `gsk_...`).
+* **Deployment Method**: Render can deploy using the provided [Dockerfile](file:///c:/Users/rohan/Documents/projects/O(Nope)/Dockerfile) or as a Web Service running:
+  ```bash
+  uvicorn api.main:app --host 0.0.0.0 --port $PORT
+  ```
+
+### 2. Frontend (Vercel)
+The React/Vite frontend is deployed on [Vercel](https://vercel.com/).
+* **Environment Variables**:
+  * `VITE_API_URL`: The URL of your deployed backend on Render (e.g., `https://o-nope-backend.onrender.com`).
+* **Project Settings**:
+  * **Framework Preset**: `Vite`
+  * **Root Directory**: `frontend`
